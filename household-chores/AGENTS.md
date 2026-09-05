@@ -3,6 +3,7 @@ Commands
 - `uv sync` - install dependencies
 - `uv run pytest` - the whole suite
 - `uv run pytest tests/test_home.py` - one test file
+- `uv run python manage.py runserver` - start the Django dev server
 
 Rules
 
@@ -11,6 +12,7 @@ Rules
 Documents
 
 - `_docs/process.md` - how work is organized
-- Before writing tests, read `_docs/testing-guidelines.md`
-- For anything touching the UI, read `_docs/design-system.md`
-
+- `_docs/team/pm.md` - Product Manager role
+- `_docs/team/software-engineer.md` - Software Engineer role
+- `_docs/team/qa-engineer.md` - QA Engineer role
+- `_docs/task-template.md` - template for grooming tasks
