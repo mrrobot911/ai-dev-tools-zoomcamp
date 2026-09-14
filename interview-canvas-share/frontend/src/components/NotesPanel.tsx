@@ -3,7 +3,6 @@ import type { Note, NoteVisibility } from '../types';
 
 interface NotesPanelProps {
   notes: Note[];
-  currentParticipantId: string;
   onAddNote: (content: string, visibility: NoteVisibility) => void;
   onUpdateNote: (noteId: string, content: string) => void;
   onRemoveNote: (noteId: string) => void;
@@ -11,7 +10,6 @@ interface NotesPanelProps {
 
 export default function NotesPanel({
   notes,
-  currentParticipantId,
   onAddNote,
   onUpdateNote,
   onRemoveNote,
@@ -28,7 +26,6 @@ export default function NotesPanel({
   }
 
   function startEdit(note: Note) {
-    if (note.authorId !== currentParticipantId) return;
     setEditingId(note.id);
     setEditContent(note.content);
   }
@@ -84,7 +81,6 @@ export default function NotesPanel({
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {sorted.map((note) => {
-              const isOwn = note.authorId === currentParticipantId;
               const isEditing = editingId === note.id;
               return (
                 <div
@@ -99,7 +95,7 @@ export default function NotesPanel({
                 >
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
                     <span style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>
-                      {isOwn ? 'You' : note.authorName}
+                      {note.authorName}
                     </span>
                     <span
                       style={{
@@ -134,12 +130,10 @@ export default function NotesPanel({
                       <p style={{ fontSize: 13, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
                         {note.content}
                       </p>
-                      {isOwn && (
-                        <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
-                          <button className="btn btn-ghost btn-sm" onClick={() => startEdit(note)}>Edit</button>
-                          <button className="btn btn-ghost btn-sm" onClick={() => onRemoveNote(note.id)}>Delete</button>
-                        </div>
-                      )}
+                      <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
+                        <button className="btn btn-ghost btn-sm" onClick={() => startEdit(note)}>Edit</button>
+                        <button className="btn btn-ghost btn-sm" onClick={() => onRemoveNote(note.id)}>Delete</button>
+                      </div>
                     </>
                   )}
                 </div>

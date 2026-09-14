@@ -98,16 +98,9 @@ export interface IEventService {
   ): Promise<() => void>;
 }
 
-export interface IAuthService {
-  getCurrentParticipant(): SessionParticipant | null;
-  setCurrentParticipant(participant: SessionParticipant | null): void;
-  clearCurrentParticipant(): void;
-}
-
 export interface Services {
   session: ISessionService;
   diagram: IDiagramService;
   note: INoteService;
   event: IEventService;
-  auth: IAuthService;
 }

@@ -115,11 +115,9 @@ describe('NotesPanel', () => {
     render(
       <NotesPanel
         notes={mockNotes}
-        currentParticipantId="p1"
         onAddNote={vi.fn()}
         onUpdateNote={vi.fn()}
         onRemoveNote={vi.fn()}
-        sessionId="s1"
       />,
     );
 
@@ -133,11 +131,9 @@ describe('NotesPanel', () => {
     render(
       <NotesPanel
         notes={[]}
-        currentParticipantId="p1"
         onAddNote={onAddNote}
         onUpdateNote={vi.fn()}
         onRemoveNote={vi.fn()}
-        sessionId="s1"
       />,
     );
 
@@ -147,34 +143,30 @@ describe('NotesPanel', () => {
     expect(onAddNote).toHaveBeenCalledWith('New note content', 'private');
   });
 
-  it('shows edit and delete buttons only for own notes', () => {
+  it('shows edit and delete buttons for all notes', () => {
     render(
       <NotesPanel
         notes={mockNotes}
-        currentParticipantId="p1"
         onAddNote={vi.fn()}
         onUpdateNote={vi.fn()}
         onRemoveNote={vi.fn()}
-        sessionId="s1"
       />,
     );
 
-    // Alice's note (p1) should have edit/delete
+    // Both notes should have edit/delete buttons now
     const editButtons = screen.getAllByText('Edit');
     const deleteButtons = screen.getAllByText('Delete');
-    expect(editButtons).toHaveLength(1);
-    expect(deleteButtons).toHaveLength(1);
+    expect(editButtons).toHaveLength(2);
+    expect(deleteButtons).toHaveLength(2);
   });
 
   it('shows empty state when no notes', () => {
     render(
       <NotesPanel
         notes={[]}
-        currentParticipantId="p1"
         onAddNote={vi.fn()}
         onUpdateNote={vi.fn()}
         onRemoveNote={vi.fn()}
-        sessionId="s1"
       />,
     );
 

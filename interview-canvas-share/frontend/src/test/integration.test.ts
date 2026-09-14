@@ -20,7 +20,6 @@ describe('Integration: Full interview flow', () => {
     });
     expect(createResult.error).toBeNull();
     const { session, participant: interviewer } = createResult.data!;
-    services.auth.setCurrentParticipant(interviewer);
 
     // 2. Candidate joins
     const joinResult = await services.session.joinSession({

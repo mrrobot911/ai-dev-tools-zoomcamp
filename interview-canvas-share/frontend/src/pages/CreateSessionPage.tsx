@@ -32,7 +32,6 @@ export default function CreateSessionPage() {
       return;
     }
 
-    getServices().auth.setCurrentParticipant(result.data.participant);
     navigate(`/session/${result.data.session.id}`);
   }
 

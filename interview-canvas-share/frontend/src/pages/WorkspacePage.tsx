@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { getServices } from '../services';
-import type { Session, SessionParticipant, DiagramState, Note, SessionEvent, NoteVisibility } from '../types';
+import type { Session, DiagramState, Note, SessionEvent, NoteVisibility } from '../types';
 import DiagramEditor from '../components/DiagramEditor';
 import NotesPanel from '../components/NotesPanel';
 import EventLog from '../components/EventLog';
@@ -11,7 +11,6 @@ export default function WorkspacePage() {
   const navigate = useNavigate();
 
   const [session, setSession] = useState<Session | null>(null);
-  const [participant, setParticipant] = useState<SessionParticipant | null>(null);
   const [diagram, setDiagram] = useState<DiagramState>({ elements: [] });
   const [notes, setNotes] = useState<Note[]>([]);
   const [events, setEvents] = useState<SessionEvent[]>([]);
@@ -26,17 +25,11 @@ export default function WorkspacePage() {
   const loadAll = useCallback(async () => {
     if (!sessionId) return;
     const svc = getServices();
-    const currentParticipant = svc.auth.getCurrentParticipant();
-    if (!currentParticipant) {
-      setError('No participant found. Please create or join a session.');
-      setLoading(false);
-      return;
-    }
 
     const [sessionRes, diagramRes, notesRes, eventsRes] = await Promise.all([
       svc.session.getSession(sessionId),
       svc.diagram.getDiagram(sessionId),
-      svc.note.getNotes(sessionId, currentParticipant.id),
+      svc.note.getNotes(sessionId, 'dummy-participant-id'), // TODO: Pass actual participant ID
       svc.event.getEvents(sessionId),
     ]);
 
@@ -47,7 +40,6 @@ export default function WorkspacePage() {
     }
 
     setSession(sessionRes.data);
-    setParticipant(currentParticipant);
     setDiagram(diagramRes.data ?? { elements: [] });
     setNotes(notesRes.data ?? []);
     setEvents(eventsRes.data ?? []);
@@ -87,14 +79,12 @@ export default function WorkspacePage() {
       { signal: controller.signal },
     ).then((unsub) => { unsubEvents = unsub; });
 
-    if (participant) {
-      svc.note.subscribeToNotes(
-        sessionId,
-        participant.id,
-        (n) => setNotes(n),
-        { signal: controller.signal },
-      ).then((unsub) => { unsubNotes = unsub; });
-    }
+    svc.note.subscribeToNotes(
+      sessionId,
+      'dummy-participant-id', // TODO: Pass actual participant ID
+      (n) => setNotes(n),
+      { signal: controller.signal },
+    ).then((unsub) => { unsubNotes = unsub; });
 
     return () => {
       controller.abort();
@@ -103,60 +93,58 @@ export default function WorkspacePage() {
       unsubEvents?.();
       unsubNotes?.();
     };
-  }, [sessionId, participant]);
+  }, [sessionId]);
 
   const handleAddElement = useCallback(
     (element: Omit<import('../types').DiagramElement, 'id'>) => {
-      if (!sessionId || !participant) return;
-      getServices().diagram.addElement(sessionId, element, participant.id);
+      if (!sessionId) return;
+      getServices().diagram.addElement(sessionId, element, 'dummy-participant-id'); // TODO: Pass actual participant ID
     },
-    [sessionId, participant],
+    [sessionId],
   );
 
   const handleUpdateElement = useCallback(
     (elementId: string, updates: Partial<import('../types').DiagramElement>) => {
-      if (!sessionId || !participant) return;
-      getServices().diagram.updateElement(sessionId, elementId, updates, participant.id);
+      if (!sessionId) return;
+      getServices().diagram.updateElement(sessionId, elementId, updates, 'dummy-participant-id'); // TODO: Pass actual participant ID
     },
-    [sessionId, participant],
+    [sessionId],
   );
 
   const handleRemoveElement = useCallback(
     (elementId: string) => {
-      if (!sessionId || !participant) return;
-      getServices().diagram.removeElement(sessionId, elementId, participant.id);
+      if (!sessionId) return;
+      getServices().diagram.removeElement(sessionId, elementId, 'dummy-participant-id'); // TODO: Pass actual participant ID
     },
-    [sessionId, participant],
+    [sessionId],
   );
 
   const handleAddNote = useCallback(
     (content: string, visibility: NoteVisibility) => {
-      if (!sessionId || !participant) return;
+      if (!sessionId) return;
       getServices().note.addNote({
         sessionId,
-        authorId: participant.id,
-        authorName: participant.name,
+        authorId: 'dummy-participant-id', // TODO: Pass actual participant ID
+        authorName: 'Dummy User', // TODO: Pass actual participant name
         content,
         visibility,
       });
     },
-    [sessionId, participant],
+    [sessionId],
   );
 
   const handleUpdateNote = useCallback(
     (noteId: string, content: string) => {
-      if (!participant) return;
-      getServices().note.updateNote(noteId, { content }, participant.id);
+      getServices().note.updateNote(noteId, { content }, 'dummy-participant-id'); // TODO: Pass actual participant ID
     },
-    [participant],
+    [],
   );
 
   const handleRemoveNote = useCallback(
     (noteId: string) => {
-      if (!participant) return;
-      getServices().note.removeNote(noteId, participant.id);
+      getServices().note.removeNote(noteId, 'dummy-participant-id'); // TODO: Pass actual participant ID
     },
-    [participant],
+    [],
   );
 
   async function handleComplete() {
@@ -166,7 +154,6 @@ export default function WorkspacePage() {
   }
 
   function handleLeave() {
-    getServices().auth.clearCurrentParticipant();
     navigate('/');
   }
 
@@ -186,7 +173,7 @@ export default function WorkspacePage() {
     );
   }
 
-  if (error || !session || !participant) {
+  if (error || !session) {
     return (
       <div
         style={{
@@ -206,7 +193,7 @@ export default function WorkspacePage() {
     );
   }
 
-  const isInterviewer = participant.role === 'interviewer';
+  const isInterviewer = true; // TODO: Determine actual role
   const isCompleted = session.status === 'completed';
 
   return (
@@ -370,11 +357,9 @@ export default function WorkspacePage() {
             {rightPanel === 'notes' ? (
               <NotesPanel
                 notes={notes}
-                currentParticipantId={participant.id}
                 onAddNote={handleAddNote}
                 onUpdateNote={handleUpdateNote}
                 onRemoveNote={handleRemoveNote}
-                sessionId={session.id}
               />
             ) : (
               <EventLog events={events} />

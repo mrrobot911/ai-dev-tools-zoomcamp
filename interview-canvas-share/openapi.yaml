@@ -1,0 +1,795 @@
+openapi: 3.0.0
+info:
+  title: Interview Canvas Share API
+  description: Backend API for Interview Canvas Share application
+  version: 1.0.0
+  contact:
+    name: API Team
+    email: api@example.com
+
+servers:
+  - url: http://localhost:8000
+    description: Development server
+  - url: https://api.example.com
+    description: Production server
+
+components:
+  schemas:
+    # Common types
+    ServiceResult:
+      type: object
+      properties:
+        data:
+          nullable: true
+        error:
+          type: string
+          nullable: true
+
+    ServiceError:
+      type: object
+      properties:
+        error:
+          type: string
+
+    # Session types
+    Role:
+      type: string
+      enum: [interviewer, candidate]
+
+    SessionStatus:
+      type: string
+      enum: [active, completed]
+
+    SessionParticipant:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        role:
+          $ref: '#/components/schemas/Role'
+        joinedAt:
+          type: integer
+          format: int64
+
+    Session:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        description:
+          type: string
+        joinCode:
+          type: string
+          pattern: '^[A-Z0-5]{6}$'
+        status:
+          $ref: '#/components/schemas/SessionStatus'
+        createdAt:
+          type: integer
+          format: int64
+        participants:
+          type: array
+          items:
+            $ref: '#/components/schemas/SessionParticipant'
+
+    # Diagram types
+    ElementType:
+      type: string
+      enum: [box, arrow, text]
+
+    DiagramElement:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        type:
+          $ref: '#/components/schemas/ElementType'
+        x:
+          type: number
+        y:
+          type: number
+        width:
+          type: number
+        height:
+          type: number
+        label:
+          type: string
+        fromId:
+          type: string
+          format: uuid
+        toId:
+          type: string
+          format: uuid
+        text:
+          type: string
+
+    DiagramState:
+      type: object
+      properties:
+        elements:
+          type: array
+          items:
+            $ref: '#/components/schemas/DiagramElement'
+
+    # Note types
+    NoteVisibility:
+      type: string
+      enum: [private, shared]
+
+    Note:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        sessionId:
+          type: string
+          format: uuid
+        authorId:
+          type: string
+          format: uuid
+        authorName:
+          type: string
+        content:
+          type: string
+        visibility:
+          $ref: '#/components/schemas/NoteVisibility'
+        createdAt:
+          type: integer
+          format: int64
+        updatedAt:
+          type: integer
+          format: int64
+
+    # Event types
+    EventType:
+      type: string
+      enum: [join, leave, element-add, element-update, element-remove, note-add, note-update, note-remove, session-complete]
+
+    SessionEvent:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        sessionId:
+          type: string
+          format: uuid
+        type:
+          $ref: '#/components/schemas/EventType'
+        participantId:
+          type: string
+          format: uuid
+        participantName:
+          type: string
+        timestamp:
+          type: integer
+          format: int64
+        payload:
+          type: object
+          additionalProperties: true
+
+    # Request types
+    CreateSessionRequest:
+      type: object
+      required:
+        - title
+        - description
+        - interviewerName
+      properties:
+        title:
+          type: string
+          maxLength: 200
+        description:
+          type: string
+          maxLength: 1000
+        interviewerName:
+          type: string
+          maxLength: 100
+
+    JoinSessionRequest:
+      type: object
+      required:
+        - joinCode
+        - candidateName
+      properties:
+        joinCode:
+          type: string
+          pattern: '^[A-Z0-5]{6}$'
+        candidateName:
+          type: string
+          maxLength: 100
+
+    AddDiagramElementRequest:
+      type: object
+      required:
+        - sessionId
+        - element
+        - actorId
+      properties:
+        sessionId:
+          type: string
+          format: uuid
+        element:
+          $ref: '#/components/schemas/DiagramElement'
+        actorId:
+          type: string
+          format: uuid
+
+    UpdateDiagramElementRequest:
+      type: object
+      required:
+        - sessionId
+        - elementId
+        - updates
+        - actorId
+      properties:
+        sessionId:
+          type: string
+          format: uuid
+        elementId:
+          type: string
+          format: uuid
+        updates:
+          $ref: '#/components/schemas/DiagramElement'
+        actorId:
+          type: string
+          format: uuid
+
+    RemoveDiagramElementRequest:
+      type: object
+      required:
+        - sessionId
+        - elementId
+        - actorId
+      properties:
+        sessionId:
+          type: string
+          format: uuid
+        elementId:
+          type: string
+          format: uuid
+        actorId:
+          type: string
+          format: uuid
+
+    AddNoteRequest:
+      type: object
+      required:
+        - sessionId
+        - authorId
+        - authorName
+        - content
+        - visibility
+      properties:
+        sessionId:
+          type: string
+          format: uuid
+        authorId:
+          type: string
+          format: uuid
+        authorName:
+          type: string
+          maxLength: 100
+        content:
+          type: string
+          maxLength: 2000
+        visibility:
+          $ref: '#/components/schemas/NoteVisibility'
+
+    UpdateNoteRequest:
+      type: object
+      required:
+        - noteId
+        - updates
+        - actorId
+      properties:
+        noteId:
+          type: string
+          format: uuid
+        updates:
+          type: object
+          properties:
+            content:
+              type: string
+              maxLength: 2000
+            visibility:
+              $ref: '#/components/schemas/NoteVisibility'
+        actorId:
+          type: string
+          format: uuid
+
+    RemoveNoteRequest:
+      type: object
+      required:
+        - noteId
+        - actorId
+      properties:
+        noteId:
+          type: string
+          format: uuid
+        actorId:
+          type: string
+          format: uuid
+
+paths:
+  # Session endpoints
+  /sessions:
+    post:
+      tags:
+        - Sessions
+      summary: Create a new interview session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateSessionRequest'
+      responses:
+        '201':
+          description: Session created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServiceResult'
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      session:
+                        $ref: '#/components/schemas/Session'
+                      participant:
+                        $ref: '#/components/schemas/SessionParticipant'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServiceError'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServiceError'
+
+  /sessions/join:
+    post:
+      tags:
+        - Sessions
+      summary: Join an existing session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/JoinSessionRequest'
+      responses:
+        '200':
+          description: Session joined successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServiceResult'
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      session:
+                        $ref: '#/components/schemas/Session'
+                      participant:
+                        $ref: '#/components/schemas/SessionParticipant'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServiceError'
+        '404':
+          description: Session not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServiceError'
+        '409':
+          description: Session already completed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServiceError'
+
+  /sessions/{sessionId}:
+    get:
+      tags:
+        - Sessions
+      summary: Get session details
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Session details retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServiceResult'
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Session'
+        '404':
+          description: Session not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServiceError'
+
+    patch:
+      tags:
+        - Sessions
+      summary: Complete a session
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Session completed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServiceResult'
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Session'
+        '404':
+          description: Session not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServiceError'
+
+  # Diagram endpoints
+  /sessions/{sessionId}/diagram:
+    get:
+      tags:
+        - Diagrams
+      summary: Get diagram state
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Diagram state retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServiceResult'
+                properties:
+                  data:
+                    $ref: '#/components/schemas/DiagramState'
+        '404':
+          description: Session not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServiceError'
+
+    post:
+      tags:
+        - Diagrams
+      summary: Add diagram element
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddDiagramElementRequest'
+      responses:
+        '201':
+          description: Element added successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServiceResult'
+                properties:
+                  data:
+                    $ref: '#/components/schemas/DiagramElement'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServiceError'
+        '404':
+          description: Session not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServiceError'
+
+    put:
+      tags:
+        - Diagrams
+      summary: Update diagram element
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateDiagramElementRequest'
+      responses:
+        '200':
+          description: Element updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServiceResult'
+                properties:
+                  data:
+                    $ref: '#/components/schemas/DiagramElement'
+        '404':
+          description: Element not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServiceError'
+
+    delete:
+      tags:
+        - Diagrams
+      summary: Remove diagram element
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RemoveDiagramElementRequest'
+      responses:
+        '200':
+          description: Element removed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServiceResult'
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+        '404':
+          description: Element not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServiceError'
+
+  # Note endpoints
+  /sessions/{sessionId}/notes:
+    get:
+      tags:
+        - Notes
+      summary: Get notes for a session
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: participantId
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Notes retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServiceResult'
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Note'
+        '404':
+          description: Session not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServiceError'
+
+    post:
+      tags:
+        - Notes
+      summary: Add a new note
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddNoteRequest'
+      responses:
+        '201':
+          description: Note created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServiceResult'
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Note'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServiceError'
+        '404':
+          description: Session not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServiceError'
+
+  /notes/{noteId}:
+    patch:
+      tags:
+        - Notes
+      summary: Update a note
+      parameters:
+        - name: noteId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateNoteRequest'
+      responses:
+        '200':
+          description: Note updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServiceResult'
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Note'
+        '404':
+          description: Note not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServiceError'
+
+    delete:
+      tags:
+        - Notes
+      summary: Delete a note
+      parameters:
+        - name: noteId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RemoveNoteRequest'
+      responses:
+        '200':
+          description: Note deleted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServiceResult'
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+        '404':
+          description: Note not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServiceError'
+
+  # Event endpoints
+  /sessions/{sessionId}/events:
+    get:
+      tags:
+        - Events
+      summary: Get session events
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Events retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServiceResult'
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/SessionEvent'
+        '404':
+          description: Session not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServiceError'
+
+tags:
+  - name: Sessions
+    description: Session management endpoints
+  - name: Diagrams
+    description: Diagram management endpoints
+  - name: Notes
+    description: Note management endpoints
+  - name: Events
+    description: Event tracking endpoints

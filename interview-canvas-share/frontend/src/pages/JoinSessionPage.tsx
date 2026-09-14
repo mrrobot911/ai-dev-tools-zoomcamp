@@ -30,7 +30,6 @@ export default function JoinSessionPage() {
       return;
     }
 
-    getServices().auth.setCurrentParticipant(result.data.participant);
     navigate(`/session/${result.data.session.id}`);
   }
 
