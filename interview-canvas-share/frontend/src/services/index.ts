@@ -1,8 +1,8 @@
 import type { Services } from './interfaces';
-import { MockSessionService } from './mock-session';
-import { MockDiagramService } from './mock-diagram';
-import { MockNoteService } from './mock-note';
-import { MockEventService } from './mock-event';
+import { RealSessionService } from './real-session';
+import { RealDiagramService } from './real-diagram';
+import { RealNoteService } from './real-note';
+import { RealEventService } from './real-event';
 
 export type { Services, ISessionService, IDiagramService, INoteService, IEventService } from './interfaces';
 
@@ -11,10 +11,10 @@ let servicesInstance: Services | null = null;
 export function getServices(): Services {
   if (!servicesInstance) {
     servicesInstance = {
-      session: new MockSessionService(),
-      diagram: new MockDiagramService(),
-      note: new MockNoteService(),
-      event: new MockEventService(),
+      session: new RealSessionService(),
+      diagram: new RealDiagramService(),
+      note: new RealNoteService(),
+      event: new RealEventService(),
     };
   }
   return servicesInstance;
@@ -29,8 +29,8 @@ export function resetServices(): void {
 }
 
 export {
-  MockSessionService,
-  MockDiagramService,
-  MockNoteService,
-  MockEventService,
+  RealSessionService,
+  RealDiagramService,
+  RealNoteService,
+  RealEventService,
 };

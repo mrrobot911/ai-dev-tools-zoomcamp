@@ -5,7 +5,7 @@ from app.models import ServiceResult, SessionEvent
 from app.store import store
 
 
-router = APIRouter(prefix="/sessions/{sessionId}/events", tags=["Events"])
+router = APIRouter(prefix="/sessions/{session_id}/events", tags=["Events"])
 
 
 @router.get("/", response_model=ServiceResult)

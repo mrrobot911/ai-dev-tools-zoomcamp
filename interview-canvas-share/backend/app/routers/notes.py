@@ -9,7 +9,7 @@ from app.store import store
 from app.auth import auth_service
 
 
-router = APIRouter(prefix="/sessions/{sessionId}/notes", tags=["Notes"])
+router = APIRouter(prefix="/sessions/{session_id}/notes", tags=["Notes"])
 
 
 @router.get("/", response_model=ServiceResult)
@@ -103,14 +103,14 @@ async def update_note(
 
 @router.delete("/{note_id}", response_model=ServiceResult)
 async def remove_note(
-    request: RemoveNoteRequest,
-    note_id: UUID = Path(..., description="Note ID")
+    note_id: UUID = Path(..., description="Note ID"),
+    actor_id: UUID = Query(..., description="Actor ID")
 ):
     """Delete a note"""
     try:
         result = store.remove_note(
             note_id=note_id,
-            actor_id=request.actorId
+            actor_id=actor_id
         )
         
         if not result:

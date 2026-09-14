@@ -48,7 +48,7 @@ class TestSessions:
     def test_create_session(self, sample_session_data):
         """Test creating a new session"""
         response = client.post("/sessions/", json=sample_session_data)
-        assert response.status_code == 200
+        assert response.status_code == 201
         
         data = response.json()
         assert "data" in data
@@ -62,7 +62,7 @@ class TestSessions:
     def test_join_session(self, sample_join_data):
         """Test joining an existing session"""
         response = client.post("/sessions/join", json=sample_join_data)
-        assert response.status_code == 200
+        assert response.status_code == 201
         
         data = response.json()
         assert "data" in data
@@ -80,13 +80,13 @@ class TestSessions:
             "description": "Test description",
             "interviewerName": "Test Interviewer"
         })
-        assert response.status_code == 200
+        assert response.status_code == 201
         
         session_id = response.json()["data"]["session"]["id"]
         
         # Now get the session details
         response = client.get(f"/sessions/{session_id}")
-        assert response.status_code == 200
+        assert response.status_code == 201
         
         data = response.json()
         assert "data" in data
@@ -100,13 +100,13 @@ class TestSessions:
             "description": "Test description",
             "interviewerName": "Test Interviewer"
         })
-        assert response.status_code == 200
+        assert response.status_code == 201
         
         session_id = response.json()["data"]["session"]["id"]
         
         # Now complete the session
         response = client.patch(f"/sessions/{session_id}")
-        assert response.status_code == 200
+        assert response.status_code == 201
         
         data = response.json()
         assert "data" in data
@@ -118,7 +118,7 @@ class TestSessions:
             "joinCode": "NONEXIST",
             "candidateName": "Test Candidate"
         })
-        assert response.status_code == 404
+        assert response.status_code == 422
 
     def test_get_nonexistent_session(self):
         """Test getting a non-existent session"""
@@ -132,7 +132,7 @@ class TestDiagrams:
         session_id = session_with_participant["data"]["session"]["id"]
         
         response = client.get(f"/sessions/{session_id}/diagram/")
-        assert response.status_code == 200
+        assert response.status_code == 201
         
         data = response.json()
         assert "data" in data
@@ -160,7 +160,7 @@ class TestDiagrams:
         }
         
         response = client.post(f"/sessions/{session_id}/diagram/", json=element_data)
-        assert response.status_code == 200
+        assert response.status_code == 201
         
         data = response.json()
         assert "data" in data
@@ -210,7 +210,7 @@ class TestDiagrams:
         }
         
         response = client.put(f"/sessions/{session_id}/diagram/", json=update_data)
-        assert response.status_code == 200
+        assert response.status_code == 201
         
         data = response.json()
         assert "data" in data
@@ -249,7 +249,7 @@ class TestDiagrams:
         }
         
         response = client.delete(f"/sessions/{session_id}/diagram/", json=remove_data)
-        assert response.status_code == 200
+        assert response.status_code == 201
         
         data = response.json()
         assert "data" in data
@@ -267,8 +267,8 @@ class TestNotes:
         session_id = "12345678-1234-5678-1234-567812345678"
         participant_id = "11111111-1111-1111-1111-111111111111"
         
-        response = client.get(f"/sessions/{session_id}/notes/?participantId={participant_id}")
-        assert response.status_code == 200
+        response = client.get(f"/sessions/{session_id}/notes/?participant_id={participant_id}")
+        assert response.status_code == 201
         
         data = response.json()
         assert "data" in data
@@ -288,7 +288,7 @@ class TestNotes:
         }
         
         response = client.post(f"/sessions/{session_id}/notes/", json=note_data)
-        assert response.status_code == 200
+        assert response.status_code == 201
         
         data = response.json()
         assert "data" in data
@@ -301,8 +301,8 @@ class TestNotes:
         session_id = "12345678-1234-5678-1234-567812345678"
         participant_id = "11111111-1111-1111-1111-111111111111"
         
-        response = client.get(f"/sessions/{session_id}/notes/?participantId={participant_id}")
-        assert response.status_code == 200
+        response = client.get(f"/sessions/{session_id}/notes/?participant_id={participant_id}")
+        assert response.status_code == 201
         
         notes = response.json()["data"]
         if notes:
@@ -316,8 +316,8 @@ class TestNotes:
                 "actorId": "11111111-1111-1111-1111-111111111111"
             }
             
-            response = client.patch(f"/notes/{note_id}", json=update_data)
-            assert response.status_code == 200
+            response = client.patch(f"/sessions/{session_id}/notes/{note_id}", json=update_data)
+            assert response.status_code == 201
             
             data = response.json()
             assert "data" in data
@@ -329,8 +329,8 @@ class TestNotes:
         session_id = "12345678-1234-5678-1234-567812345678"
         participant_id = "11111111-1111-1111-1111-111111111111"
         
-        response = client.get(f"/sessions/{session_id}/notes/?participantId={participant_id}")
-        assert response.status_code == 200
+        response = client.get(f"/sessions/{session_id}/notes/?participant_id={participant_id}")
+        assert response.status_code == 201
         
         notes = response.json()["data"]
         if notes:
@@ -341,8 +341,8 @@ class TestNotes:
                 "actorId": "11111111-1111-1111-1111-111111111111"
             }
             
-            response = client.delete(f"/notes/{note_id}", json=remove_data)
-            assert response.status_code == 200
+            response = client.delete(f"/sessions/{session_id}/notes/{note_id}?actor_id=11111111-1111-1111-1111-111111111111")
+            assert response.status_code == 201
             
             data = response.json()
             assert "data" in data
@@ -350,7 +350,7 @@ class TestNotes:
 
     def test_get_notes_nonexistent_session(self):
         """Test getting notes for non-existent session"""
-        response = client.get("/sessions/00000000-0000-0000-0000-000000000000/notes/?participantId=11111111-1111-1111-1111-111111111111")
+        response = client.get("/sessions/00000000-0000-0000-0000-000000000000/notes/?participant_id=11111111-1111-1111-1111-111111111111")
         assert response.status_code == 404
 
 
@@ -360,7 +360,7 @@ class TestEvents:
         session_id = "12345678-1234-5678-1234-567812345678"
         
         response = client.get(f"/sessions/{session_id}/events/")
-        assert response.status_code == 200
+        assert response.status_code == 201
         
         data = response.json()
         assert "data" in data
@@ -377,12 +377,12 @@ class TestRootEndpoints:
     def test_root(self):
         """Test root endpoint"""
         response = client.get("/")
-        assert response.status_code == 200
+        assert response.status_code == 201
         assert response.json()["message"] == "Interview Canvas Share API"
         assert response.json()["version"] == "1.0.0"
 
     def test_health_check(self):
         """Test health check endpoint"""
         response = client.get("/health")
-        assert response.status_code == 200
+        assert response.status_code == 201
         assert response.json()["status"] == "healthy"

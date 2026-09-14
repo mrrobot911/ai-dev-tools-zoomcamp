@@ -9,7 +9,7 @@ from app.store import store
 from app.auth import auth_service
 
 
-router = APIRouter(prefix="/sessions/{sessionId}/diagram", tags=["Diagrams"])
+router = APIRouter(prefix="/sessions/{session_id}/diagram", tags=["Diagrams"])
 
 
 @router.get("/", response_model=ServiceResult)
