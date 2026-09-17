@@ -1,4 +1,5 @@
 import pytest
+from uuid import uuid4
 from fastapi.testclient import TestClient
 from app.main import app
 
@@ -217,6 +218,12 @@ def test_get_board_details(headers):
     assert board["name"] == "Test Board"
     assert "columns" in board
     assert "cards" in board
+    # Should have 3 default columns
+    assert len(board["columns"]) == 3
+    column_names = [col["name"] for col in board["columns"]]
+    assert "To Do" in column_names
+    assert "In Progress" in column_names
+    assert "Done" in column_names
     assert "participants" in board
 
 
@@ -487,6 +494,124 @@ def test_leave_board(headers, headers2, test_user, test_user2):
     # User 2 cannot leave if they're not a participant (should be 404)
     response = client.post(f"/boards/{board_id}/leave", headers=headers2)
     assert response.status_code == 404
+
+
+def test_move_card_valid(headers, test_user):
+    """Test moving a card to a different column"""
+    # Create a board first
+    board_data = {"name": "Test Board"}
+    create_response = client.post("/boards", json=board_data, headers=headers)
+    board_id = create_response.json()["id"]
+    
+    # Get columns (should have 3 default columns)
+    columns_response = client.get(f"/boards/{board_id}", headers=headers)
+    columns = columns_response.json()["columns"]
+    todo_column = next(col for col in columns if col["name"] == "To Do")
+    progress_column = next(col for col in columns if col["name"] == "In Progress")
+    
+    # Create a card in "To Do"
+    card_data = {
+        "title": "Test Card",
+        "columnId": todo_column["id"]
+    }
+    card_response = client.post(f"/boards/{board_id}/cards", json=card_data, headers=headers)
+    card = card_response.json()
+    
+    # Move card to "In Progress"
+    move_data = {
+        "cardId": card["id"],
+        "targetColumnId": progress_column["id"]
+    }
+    move_response = client.put(f"/boards/{board_id}/cards/move", json=move_data, headers=headers)
+    assert move_response.status_code == 200
+    moved_card = move_response.json()
+    assert moved_card["id"] == card["id"]
+    assert moved_card["columnId"] == progress_column["id"]
+
+
+def test_move_card_invalid_card_id(headers, test_user):
+    """Test moving a card with invalid card_id"""
+    # Create a board first
+    board_data = {"name": "Test Board"}
+    create_response = client.post("/boards", json=board_data, headers=headers)
+    board_id = create_response.json()["id"]
+    
+    # Get columns
+    columns_response = client.get(f"/boards/{board_id}", headers=headers)
+    columns = columns_response.json()["columns"]
+    progress_column = next(col for col in columns if col["name"] == "In Progress")
+    
+    # Try to move non-existent card
+    fake_card_id = str(uuid4())
+    move_data = {
+        "cardId": fake_card_id,  # Non-existent card ID
+        "targetColumnId": progress_column["id"]
+    }
+    move_response = client.put(f"/boards/{board_id}/cards/{fake_card_id}/move", json=move_data, headers=headers)
+    assert move_response.status_code == 404
+
+
+def test_move_card_invalid_board_id(headers, test_user):
+    """Test moving a card with invalid board_id"""
+    # Create a board first to get a valid column ID
+    board_data = {"name": "Test Board"}
+    create_response = client.post("/boards", json=board_data, headers=headers)
+    board_id = create_response.json()["id"]
+    
+    # Get columns
+    columns_response = client.get(f"/boards/{board_id}", headers=headers)
+    columns = columns_response.json()["columns"]
+    todo_column = next(col for col in columns if col["name"] == "To Do")
+    progress_column = next(col for col in columns if col["name"] == "In Progress")
+    
+    # Create a card
+    card_data = {
+        "title": "Test Card",
+        "columnId": todo_column["id"]
+    }
+    card_response = client.post(f"/boards/{board_id}/cards", json=card_data, headers=headers)
+    card = card_response.json()
+    
+    # Try to move to non-existent board
+    fake_board_id = str(uuid4())
+    move_data = {
+        "cardId": card["id"],
+        "targetColumnId": progress_column["id"]
+    }
+    move_response = client.put(f"/boards/{fake_board_id}/cards/move", json=move_data, headers=headers)
+    assert move_response.status_code == 404
+
+
+def test_move_card_same_column(headers, test_user):
+    """Test moving a card to the same column (should still work)"""
+    # Create a board first
+    board_data = {"name": "Test Board"}
+    create_response = client.post("/boards", json=board_data, headers=headers)
+    board_id = create_response.json()["id"]
+    
+    # Get columns
+    columns_response = client.get(f"/boards/{board_id}", headers=headers)
+    columns = columns_response.json()["columns"]
+    todo_column = next(col for col in columns if col["name"] == "To Do")
+    
+    # Create a card in "To Do"
+    card_data = {
+        "title": "Test Card",
+        "columnId": todo_column["id"]
+    }
+    card_response = client.post(f"/boards/{board_id}/cards", json=card_data, headers=headers)
+    card = card_response.json()
+    
+    # Move card to the same column
+    move_data = {
+        "cardId": card["id"],
+        "targetColumnId": todo_column["id"]
+    }
+    move_response = client.put(f"/boards/{board_id}/cards/move", json=move_data, headers=headers)
+    assert move_response.status_code == 200
+    moved_card = move_response.json()
+    assert moved_card["id"] == card["id"]
+    assert moved_card["columnId"] == todo_column["id"]
 
 
 if __name__ == "__main__":

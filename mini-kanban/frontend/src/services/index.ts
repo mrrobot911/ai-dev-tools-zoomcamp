@@ -1,7 +1,7 @@
-import { mockService } from '@/services/mockService';
+import { apiService } from '@/services/apiService';
 import type { KanbanService } from '@/services/types';
 
-// Centralized service layer — swap mockService for a real implementation later.
-export const service: KanbanService = mockService;
+// Real backend client — connects to the FastAPI backend
+export const service: KanbanService = apiService;
 
 export type { KanbanService } from '@/services/types';

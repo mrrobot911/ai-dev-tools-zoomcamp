@@ -215,15 +215,21 @@ def test_create_column(cleanup_dbs):
     owner_id = uuid4()
     owner_name = "Test Owner"
     user = create_user(f"owner_{owner_id}@test.com", owner_name, get_password_hash("password"))
-    
+
     board = create_board("Test Board", user.id, user.name)
     
+    # Board should have 3 default columns
+    default_columns = get_columns_by_board(board.id)
+    assert len(default_columns) == 3
+    
+    # Create a new column
     column = create_column(board.id, "To Do")
     
     assert column.name == "To Do"
     assert column.boardId == board.id
     assert column.id in columns_db
-    assert column.order == 0
+    # New column should have order 3 (after the 3 default columns)
+    assert column.order == 3
 
 
 def test_get_columns_by_board(cleanup_dbs):
@@ -232,19 +238,22 @@ def test_get_columns_by_board(cleanup_dbs):
     owner_id = uuid4()
     owner_name = "Test Owner"
     user = create_user(f"owner_{owner_id}@test.com", owner_name, get_password_hash("password"))
-    
+
     board = create_board("Test Board", user.id, user.name)
     
-    # Create columns
+    # Board should have 3 default columns
+    columns = get_columns_by_board(board.id)
+    assert len(columns) == 3
+    
+    # Create additional columns
     column1 = create_column(board.id, "To Do")
     column2 = create_column(board.id, "In Progress")
     
-    # Get columns by board
-    columns = get_columns_by_board(board.id)
-    
-    assert len(columns) == 2
-    assert column1.id in [c.id for c in columns]
-    assert column2.id in [c.id for c in columns]
+    # Get columns by board again
+    all_columns = get_columns_by_board(board.id)
+    assert len(all_columns) == 5  # 3 default + 2 new
+    assert column1.id in [c.id for c in all_columns]
+    assert column2.id in [c.id for c in all_columns]
 
 
 def test_get_columns_by_board_no_columns(cleanup_dbs):
@@ -253,13 +262,12 @@ def test_get_columns_by_board_no_columns(cleanup_dbs):
     owner_id = uuid4()
     owner_name = "Test Owner"
     user = create_user(f"owner_{owner_id}@test.com", owner_name, get_password_hash("password"))
-    
+
     board = create_board("Test Board", user.id, user.name)
     
-    # Get columns by board
+    # Board should have 3 default columns, not 0
     columns = get_columns_by_board(board.id)
-    
-    assert len(columns) == 0
+    assert len(columns) == 3
 
 
 def test_update_column(cleanup_dbs):
@@ -320,17 +328,27 @@ def test_reorder_columns(cleanup_dbs):
     owner_id = uuid4()
     owner_name = "Test Owner"
     user = create_user(f"owner_{owner_id}@test.com", owner_name, get_password_hash("password"))
-    
+
     board = create_board("Test Board", user.id, user.name)
     
-    # Create columns
+    # Board should have 3 default columns
+    default_columns = get_columns_by_board(board.id)
+    assert len(default_columns) == 3
+    
+    # Create additional columns
     column1 = create_column(board.id, "To Do")
     column2 = create_column(board.id, "In Progress")
     
-    # Reorder columns
-    reordered_columns = reorder_columns(board.id, [column2.id, column1.id])
+    # Reorder columns - put the new ones first
+    reordered_columns = reorder_columns(board.id, [column2.id, column1.id] + [c.id for c in default_columns])
     
-    assert len(reordered_columns) == 2
+    assert len(reordered_columns) == 5  # 3 default + 2 new
+    assert reordered_columns[0].id == column2.id
+    assert reordered_columns[1].id == column1.id
+    # Default columns should follow in their original order
+    assert reordered_columns[2].id == default_columns[0].id
+    assert reordered_columns[3].id == default_columns[1].id
+    assert reordered_columns[4].id == default_columns[2].id
     assert reordered_columns[0].id == column2.id
     assert reordered_columns[0].order == 0
     assert reordered_columns[1].id == column1.id

@@ -173,6 +173,7 @@ class CardUpdate(BaseModel):
     title: Optional[str] = None
     description: Optional[str] = None
     assigneeId: Optional[UUID] = None
+    columnId: Optional[UUID] = None
 
 
 class CardMove(BaseModel):

@@ -52,6 +52,11 @@ def create_board(name: str, owner_id: UUID, owner_name: str) -> Board:
     # Create owner as participant
     create_participant(board_id, owner_id, owner_name, UserRole.OWNER)
     
+    # Create default columns with correct order
+    create_column(board_id, "To Do")
+    create_column(board_id, "In Progress")
+    create_column(board_id, "Done")
+    
     return board
 
 

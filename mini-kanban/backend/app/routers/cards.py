@@ -57,55 +57,6 @@ async def create_card_endpoint(
     return card
 
 
-@router.put("/{boardId}/cards/{cardId}", response_model=Card)
-async def update_card_endpoint(
-    boardId: UUID,
-    cardId: UUID,
-    card_data: CardUpdate,
-    current_user: User = Depends(get_current_active_user)
-):
-    """Update card"""
-    # Check if board exists and user has access
-    board = get_board_by_id(boardId)
-    if not board:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Board not found"
-        )
-    
-    # Check if card exists and belongs to this board
-    cards = get_cards_by_board(boardId)
-    card_exists = any(c.id == cardId for c in cards)
-    if not card_exists:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Card not found"
-        )
-    
-    # Get assignee info if provided
-    assignee_name = None
-    if card_data.assigneeId:
-        assignee = get_user_by_id(card_data.assigneeId)
-        if assignee:
-            assignee_name = assignee.name
-    
-    updated_card = update_card(
-        card_id=cardId,
-        title=card_data.title,
-        description=card_data.description,
-        assignee_id=card_data.assigneeId,
-        assignee_name=assignee_name
-    )
-    
-    if not updated_card:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Card not found"
-        )
-    
-    return updated_card
-
-
 @router.delete("/{boardId}/cards/{cardId}")
 async def delete_card_endpoint(
     boardId: UUID,
@@ -150,6 +101,108 @@ async def delete_card_endpoint(
         )
     
     return {"message": "Card deleted"}
+
+
+@router.put("/{boardId}/cards/move", response_model=Card)
+async def move_card_endpoint(
+    boardId: UUID,
+    move_data: CardMove,
+    current_user: User = Depends(get_current_active_user)
+):
+    """Move card to different column"""
+    # Check if board exists and user has access
+    board = get_board_by_id(boardId)
+    if not board:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Board not found"
+        )
+    
+    # Check if card exists and belongs to this board
+    cards = get_cards_by_board(boardId)
+    card_exists = any(c.id == move_data.cardId for c in cards)
+    if not card_exists:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Card not found"
+        )
+    
+    # Check if target column exists
+    columns = get_columns_by_board(boardId)
+    target_column_exists = any(c.id == move_data.targetColumnId for c in columns)
+    if not target_column_exists:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Column not found"
+        )
+    
+    moved_card = move_card(move_data.cardId, move_data.targetColumnId)
+    if not moved_card:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Card not found"
+        )
+    
+    return moved_card
+
+
+@router.put("/{boardId}/cards/{cardId}", response_model=Card)
+async def update_card_endpoint(
+    boardId: UUID,
+    cardId: UUID,
+    card_data: CardUpdate,
+    current_user: User = Depends(get_current_active_user)
+):
+    """Update card"""
+    # Check if board exists and user has access
+    board = get_board_by_id(boardId)
+    if not board:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Board not found"
+        )
+    
+    # Check if card exists and belongs to this board
+    cards = get_cards_by_board(boardId)
+    card_exists = any(c.id == cardId for c in cards)
+    if not card_exists:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Card not found"
+        )
+    
+    # Check if target column exists (if columnId is provided)
+    if card_data.columnId:
+        columns = get_columns_by_board(boardId)
+        target_column_exists = any(c.id == card_data.columnId for c in columns)
+        if not target_column_exists:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Column not found"
+            )
+    
+    # Get assignee info if provided
+    assignee_name = None
+    if card_data.assigneeId:
+        assignee = get_user_by_id(card_data.assigneeId)
+        if assignee:
+            assignee_name = assignee.name
+    
+    updated_card = update_card(
+        card_id=cardId,
+        title=card_data.title,
+        description=card_data.description,
+        assignee_id=card_data.assigneeId,
+        assignee_name=assignee_name
+    )
+    
+    if not updated_card:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Card not found"
+        )
+    
+    return updated_card
 
 
 @router.put("/{boardId}/cards/move", response_model=Card)
