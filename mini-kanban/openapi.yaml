@@ -1,0 +1,979 @@
+openapi: 3.0.0
+info:
+  title: Mini Kanban Board API
+  description: REST API and WebSocket endpoints for the Mini Kanban Board application
+  version: 1.0.0
+  contact:
+    name: Mini Kanban Board Team
+    email: support@minikanban.com
+
+servers:
+  - url: http://localhost:8000
+    description: Development server
+  - url: https://api.minikanban.com
+    description: Production server
+
+security:
+  - BearerAuth: []
+
+paths:
+  # Authentication endpoints
+  /auth/register:
+    post:
+      tags:
+        - Authentication
+      summary: Register a new user
+      description: Create a new user account with email and password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+                - name
+              properties:
+                email:
+                  type: string
+                  format: email
+                  description: User's email address
+                password:
+                  type: string
+                  minLength: 4
+                  description: User's password (minimum 4 characters)
+                name:
+                  type: string
+                  description: User's display name
+                invitationToken:
+                  type: string
+                  description: Optional invitation token for automatic board joining
+
+      responses:
+        '201':
+          description: User registered successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user:
+                    $ref: '#/components/schemas/User'
+                  token:
+                    type: string
+                    description: JWT access token
+        '400':
+          description: Invalid input data
+        '409':
+          description: User with this email already exists
+
+  /auth/login:
+    post:
+      tags:
+        - Authentication
+      summary: User login
+      description: Authenticate user with email and password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user:
+                    $ref: '#/components/schemas/User'
+                  token:
+                    type: string
+        '401':
+          description: Invalid credentials
+
+  /auth/logout:
+    post:
+      tags:
+        - Authentication
+      summary: User logout
+      description: Invalidate user session
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Logout successful
+
+  /auth/me:
+    get:
+      tags:
+        - Authentication
+      summary: Get current user
+      description: Retrieve authenticated user's profile
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Current user profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          description: Not authenticated
+
+  # Board endpoints
+  /boards:
+    get:
+      tags:
+        - Boards
+      summary: List user's boards
+      description: Get all boards the user has access to
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: List of user's boards
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/BoardSummary'
+
+    post:
+      tags:
+        - Boards
+      summary: Create a new board
+      description: Create a new kanban board
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+              properties:
+                name:
+                  type: string
+                  description: Board name
+
+      responses:
+        '201':
+          description: Board created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Board'
+
+  /boards/{boardId}:
+    get:
+      tags:
+        - Boards
+      summary: Get board details
+      description: Get detailed information about a board including columns and cards
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: boardId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Board ID
+
+      responses:
+        '200':
+          description: Board details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BoardWithDetails'
+        '403':
+          description: Access denied
+        '404':
+          description: Board not found
+
+    put:
+      tags:
+        - Boards
+      summary: Update board
+      description: Update board name (owner only)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: boardId
+          in: path
+          required: true
+          schema:
+            type: string
+
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+              properties:
+                name:
+                  type: string
+
+      responses:
+        '200':
+          description: Board updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Board'
+        '403':
+          description: Access denied (not owner)
+        '404':
+          description: Board not found
+
+    delete:
+      tags:
+        - Boards
+      summary: Delete board
+      description: Delete a board and all its data (owner only)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: boardId
+          in: path
+          required: true
+          schema:
+            type: string
+
+      responses:
+        '204':
+          description: Board deleted successfully
+        '403':
+          description: Access denied (not owner)
+        '404':
+          description: Board not found
+
+  # Column endpoints
+  /boards/{boardId}/columns:
+    post:
+      tags:
+        - Columns
+      summary: Create column
+      description: Create a new column in the board (owner only)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: boardId
+          in: path
+          required: true
+          schema:
+            type: string
+
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+              properties:
+                name:
+                  type: string
+
+      responses:
+        '201':
+          description: Column created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Column'
+        '403':
+          description: Access denied
+        '404':
+          description: Board not found
+
+  /boards/{boardId}/columns/{columnId}:
+    put:
+      tags:
+        - Columns
+      summary: Update column
+      description: Update column name or order (owner only)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: boardId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: columnId
+          in: path
+          required: true
+          schema:
+            type: string
+
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                order:
+                  type: integer
+
+      responses:
+        '200':
+          description: Column updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Column'
+        '403':
+          description: Access denied
+        '404':
+          description: Board or column not found
+
+    delete:
+      tags:
+        - Columns
+      summary: Delete column
+      description: Delete a column (owner only, must be empty)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: boardId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: columnId
+          in: path
+          required: true
+          schema:
+            type: string
+
+      responses:
+        '204':
+          description: Column deleted
+        '403':
+          description: Access denied
+        '404':
+          description: Board or column not found
+
+  /boards/{boardId}/columns/reorder:
+    put:
+      tags:
+        - Columns
+      summary: Reorder columns
+      description: Reorder columns in the board (owner only)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: boardId
+          in: path
+          required: true
+          schema:
+            type: string
+
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - columnIds
+              properties:
+                columnIds:
+                  type: array
+                  items:
+                    type: string
+                  description: Array of column IDs in new order
+
+      responses:
+        '200':
+          description: Columns reordered
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Column'
+        '403':
+          description: Access denied
+        '404':
+          description: Board not found
+
+  # Card endpoints
+  /boards/{boardId}/cards:
+    post:
+      tags:
+        - Cards
+      summary: Create card
+      description: Create a new card in a column
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: boardId
+          in: path
+          required: true
+          schema:
+            type: string
+
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - title
+                - columnId
+              properties:
+                title:
+                  type: string
+                description:
+                  type: string
+                assigneeId:
+                  type: string
+                  nullable: true
+
+      responses:
+        '201':
+          description: Card created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Card'
+        '403':
+          description: Access denied
+        '404':
+          description: Board or column not found
+
+  /boards/{boardId}/cards/{cardId}:
+    put:
+      tags:
+        - Cards
+      summary: Update card
+      description: Update card title, description, or assignee
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: boardId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: cardId
+          in: path
+          required: true
+          schema:
+            type: string
+
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                description:
+                  type: string
+                assigneeId:
+                  type: string
+                  nullable: true
+
+      responses:
+        '200':
+          description: Card updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Card'
+        '403':
+          description: Access denied
+        '404':
+          description: Board or card not found
+
+    delete:
+      tags:
+        - Cards
+      summary: Delete card
+      description: Delete a card (creator or owner only)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: boardId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: cardId
+          in: path
+          required: true
+          schema:
+            type: string
+
+      responses:
+        '204':
+          description: Card deleted
+        '403':
+          description: Access denied (not creator or owner)
+        '404':
+          description: Board or card not found
+
+  /boards/{boardId}/cards/move:
+    put:
+      tags:
+        - Cards
+      summary: Move card
+      description: Move a card to a different column
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: boardId
+          in: path
+          required: true
+          schema:
+            type: string
+
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - cardId
+                - targetColumnId
+              properties:
+                cardId:
+                  type: string
+                targetColumnId:
+                  type: string
+
+      responses:
+        '200':
+          description: Card moved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Card'
+        '403':
+          description: Access denied
+        '404':
+          description: Board, card, or column not found
+
+  # Participant endpoints
+  /boards/{boardId}/participants/{userId}:
+    delete:
+      tags:
+        - Participants
+      summary: Remove participant
+      description: Remove a user from the board (owner only)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: boardId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+
+      responses:
+        '204':
+          description: Participant removed
+        '403':
+          description: Access denied (not owner) or trying to remove owner
+        '404':
+          description: Board or user not found
+
+  /boards/{boardId}/leave:
+    post:
+      tags:
+        - Participants
+      summary: Leave board
+      description: Leave a board as a participant
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: boardId
+          in: path
+          required: true
+          schema:
+            type: string
+
+      responses:
+        '204':
+          description: Left board successfully
+        '403':
+          description: Cannot leave (only participant, not owner)
+        '404':
+          description: Board not found
+
+  # Invitation endpoints
+  /boards/{boardId}/invitations:
+    post:
+      tags:
+        - Invitations
+      summary: Create invitation
+      description: Generate a single-use invitation link (owner only)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: boardId
+          in: path
+          required: true
+          schema:
+            type: string
+
+      responses:
+        '201':
+          description: Invitation created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Invitation'
+        '403':
+          description: Access denied or board full
+        '404':
+          description: Board not found
+
+    get:
+      tags:
+        - Invitations
+      summary: List invitations
+      description: Get all invitations for a board (owner only)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: boardId
+          in: path
+          required: true
+          schema:
+            type: string
+
+      responses:
+        '200':
+          description: List of invitations
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Invitation'
+        '403':
+          description: Access denied
+        '404':
+          description: Board not found
+
+  /invitations/{token}:
+    get:
+      tags:
+        - Invitations
+      summary: Get invitation by token
+      description: Get invitation details by token (no auth required)
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema:
+            type: string
+
+      responses:
+        '200':
+          description: Invitation details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Invitation'
+        '404':
+          description: Invitation not found or already used
+
+  # Search and filter endpoints
+  /boards/{boardId}/cards/search:
+    get:
+      tags:
+        - Search
+      summary: Search cards
+      description: Search cards by title
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: boardId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: query
+          in: query
+          required: true
+          schema:
+            type: string
+
+      responses:
+        '200':
+          description: Search results
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Card'
+
+  /boards/{boardId}/cards/filter:
+    get:
+      tags:
+        - Search
+      summary: Filter cards by assignee
+      description: Filter cards by assignee ID
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: boardId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: assigneeId
+          in: query
+          required: true
+          schema:
+            type: string
+            nullable: true
+
+      responses:
+        '200':
+          description: Filter results
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Card'
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        name:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+
+    Board:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        ownerId:
+          type: string
+          format: uuid
+        ownerName:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    BoardSummary:
+      type: object
+      properties:
+        board:
+          $ref: '#/components/schemas/Board'
+        participantCount:
+          type: integer
+          minimum: 1
+        role:
+          type: string
+          enum: [owner, participant]
+
+    BoardWithDetails:
+      allOf:
+        - $ref: '#/components/schemas/Board'
+        - type: object
+          properties:
+            participants:
+              type: array
+              items:
+                $ref: '#/components/schemas/Participant'
+            columns:
+              type: array
+              items:
+                $ref: '#/components/schemas/Column'
+            cards:
+              type: array
+              items:
+                $ref: '#/components/schemas/Card'
+            role:
+              type: string
+              enum: [owner, participant]
+
+    Participant:
+      type: object
+      properties:
+        userId:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        name:
+          type: string
+        role:
+          type: string
+          enum: [owner, participant]
+        joinedAt:
+          type: string
+          format: date-time
+
+    Column:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        boardId:
+          type: string
+          format: uuid
+        name:
+          type: string
+        order:
+          type: integer
+          minimum: 0
+        createdAt:
+          type: string
+          format: date-time
+
+    Card:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        boardId:
+          type: string
+          format: uuid
+        columnId:
+          type: string
+          format: uuid
+        title:
+          type: string
+        description:
+          type: string
+        creatorId:
+          type: string
+          format: uuid
+        creatorName:
+          type: string
+        assigneeId:
+          type: string
+          format: uuid
+          nullable: true
+        assigneeName:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    Invitation:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        boardId:
+          type: string
+          format: uuid
+        boardName:
+          type: string
+        token:
+          type: string
+        used:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        createdBy:
+          type: string
+          format: uuid
+
+  errors:
+    Error:
+      type: object
+      properties:
+        message:
+          type: string
+        status:
+          type: integer
+
+
+
+tags:
+  - name: Authentication
+    description: User authentication and session management
+  - name: Boards
+    description: Board management operations
+  - name: Columns
+    description: Column management operations
+  - name: Cards
+    description: Card management operations
+  - name: Participants
+    description: Participant management operations
+  - name: Invitations
+    description: Invitation management operations
+  - name: Search
+    description: Card search and filtering operations
+  - name: WebSocket
+    description: Real-time synchronization endpoints
