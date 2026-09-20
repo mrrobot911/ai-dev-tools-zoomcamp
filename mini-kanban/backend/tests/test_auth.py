@@ -14,8 +14,13 @@ from app.models import User, TokenData
 @pytest.fixture
 def cleanup_auth_dbs():
     """Clean up auth databases before each test"""
-    users_db.clear()
-    user_tokens.clear()
+    # Clear the test database by dropping and recreating tables
+    from app.database import Base, engine
+    
+    # Drop all tables
+    Base.metadata.drop_all(bind=engine)
+    # Recreate all tables
+    Base.metadata.create_all(bind=engine)
 
 
 def test_password_hashing(cleanup_auth_dbs):

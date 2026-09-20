@@ -17,13 +17,13 @@ from app.models import UserRole
 @pytest.fixture
 def cleanup_dbs():
     """Clean up databases before each test"""
-    users_db.clear()
-    boards_db.clear()
-    columns_db.clear()
-    cards_db.clear()
-    participants_db.clear()
-    invitations_db.clear()
-    board_participants.clear()
+    # Clear the test database by dropping and recreating tables
+    from app.database import Base, engine
+    
+    # Drop all tables
+    Base.metadata.drop_all(bind=engine)
+    # Recreate all tables
+    Base.metadata.create_all(bind=engine)
 
 
 def test_create_user(cleanup_dbs):
