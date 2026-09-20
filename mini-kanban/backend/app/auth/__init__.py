@@ -18,10 +18,6 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 30
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 security = HTTPBearer()
 
-# In-memory user storage (for backward compatibility)
-users_db = {}
-user_tokens = {}
-
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """Verify a password against its hash"""
@@ -63,7 +59,6 @@ def verify_token(token: str) -> TokenData:
         raise credentials_exception
     except ValueError:
         raise credentials_exception
-    return token_data
 
 
 def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)) -> User:
@@ -74,11 +69,10 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(securit
     token_data = verify_token(token)
     user_id = token_data.user_id
     
-    # Try to get user from database first
+    # Get user from database
     from app.dependencies import get_db_session
     db = next(get_db_session())
     try:
-        from app.database_service import DatabaseService
         service = DatabaseService(db)
         user = service.get_user_by_id(str(user_id))
         if user:
@@ -88,26 +82,21 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(securit
                 name=user.name,
                 createdAt=user.created_at
             )
-    finally:
-        db.close()
-    
-    # Fall back to in-memory storage for backward compatibility
-    if user_id not in users_db:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="User not found",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    user_data = users_db[user_id]
-    return User(**{k: v for k, v in user_data.items() if k != "password"})
+    finally:
+        db.close()
 
 
 def get_current_active_user(current_user: User = Depends(get_current_user)) -> User:
+    """Get current active user"""
     # Check if user exists in database
     from app.dependencies import get_db_session
     db = next(get_db_session())
     try:
-        from app.database_service import DatabaseService
         service = DatabaseService(db)
         user = service.get_user_by_id(str(current_user.id))
         if not user:
@@ -118,11 +107,11 @@ def get_current_active_user(current_user: User = Depends(get_current_user)) -> U
 
 
 def authenticate_user(email: str, password: str) -> Optional[User]:
-    # Try to get user from database first
+    """Authenticate user with email and password"""
+    # Get user from database
     from app.dependencies import get_db_session
     db = next(get_db_session())
     try:
-        from app.database_service import DatabaseService
         service = DatabaseService(db)
         db_user = service.get_user_by_email(email)
         if db_user and verify_password(password, db_user.password_hash):
@@ -135,28 +124,17 @@ def authenticate_user(email: str, password: str) -> Optional[User]:
     finally:
         db.close()
     
-    # Fall back to in-memory storage for backward compatibility
-    user = None
-    for u in users_db.values():
-        if u["email"] == email:
-            user = u
-            break
-    
-    if not user or not verify_password(password, user["password"]):
-        return None
-    return User(**{k: v for k, v in user.items() if k != "password"})
+    return False
 
 
 def create_user(email: str, password: str, name: str) -> User:
-    user_id = uuid4()
-    hashed_password = get_password_hash(password)
-    
+    """Create a user"""
     # Create user in database
     from app.dependencies import get_db_session
     db = next(get_db_session())
     try:
         service = DatabaseService(db)
-        user = service.create_user(email, name, hashed_password)
+        user = service.create_user(email, name, get_password_hash(password))
         return User(
             id=UUID(user.id),
             email=user.email,
@@ -165,21 +143,6 @@ def create_user(email: str, password: str, name: str) -> User:
         )
     finally:
         db.close()
-    
-    # Also store in memory for backward compatibility
-    user = User(
-        id=user_id,
-        email=email,
-        name=name,
-        createdAt=datetime.utcnow()
-    )
-    
-    users_db[user_id] = {
-        **user.model_dump(),
-        "password": hashed_password
-    }
-    
-    return user
 
 
 def auth_create_user(email: str, name: str, password_hash: str, user_id: Optional[UUID] = None) -> User:
@@ -201,28 +164,35 @@ def auth_create_user(email: str, name: str, password_hash: str, user_id: Optiona
         )
     finally:
         db.close()
-    
-    # Also store in memory for backward compatibility
-    user = User(
-        id=user_id,
-        email=email,
-        name=name,
-        createdAt=datetime.utcnow()
-    )
-    users_db[user_id] = {
-        **user.model_dump(),
-        "password": password_hash
-    }
-    return user
 
 
-def logout_user(user_id: UUID) -> None:
-    if user_id in user_tokens:
-        del user_tokens[user_id]
+def logout_user(user_id: UUID) -> bool:
+    """Logout user (no-op since we don't track tokens in database)"""
+    # Return False if user doesn't exist, True if they do
+    from app.dependencies import get_db_session
+    db = next(get_db_session())
+    try:
+        service = DatabaseService(db)
+        user = service.get_user_by_id(str(user_id))
+        return user is not None
+    finally:
+        db.close()
 
 
-def is_token_valid(user_id: UUID, token: str) -> bool:
-    return user_id in user_tokens and user_tokens[user_id] == token
+def is_token_valid(token: str) -> bool:
+    """Check if token is valid by verifying it contains a valid user"""
+    try:
+        token_data = verify_token(token)
+        from app.dependencies import get_db_session
+        db = next(get_db_session())
+        try:
+            service = DatabaseService(db)
+            user = service.get_user_by_id(str(token_data.user_id))
+            return user is not None
+        finally:
+            db.close()
+    except:
+        return False
 
 
 # Auth middleware for routes that require authentication
