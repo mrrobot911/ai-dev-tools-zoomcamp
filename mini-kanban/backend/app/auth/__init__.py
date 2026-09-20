@@ -7,6 +7,8 @@ from passlib.context import CryptContext
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from app.models import User, TokenData
+from app.database_service import DatabaseService
+from app.database import get_db
 
 # Security configuration
 SECRET_KEY = "your-secret-key-change-this-in-production"
@@ -16,7 +18,7 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 30
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 security = HTTPBearer()
 
-# In-memory user storage
+# In-memory user storage (for backward compatibility)
 users_db = {}
 user_tokens = {}
 
@@ -71,6 +73,25 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(securit
     
     token_data = verify_token(token)
     user_id = token_data.user_id
+    
+    # Try to get user from database first
+    from app.dependencies import get_db_session
+    db = next(get_db_session())
+    try:
+        from app.database_service import DatabaseService
+        service = DatabaseService(db)
+        user = service.get_user_by_id(str(user_id))
+        if user:
+            return User(
+                id=UUID(user.id),
+                email=user.email,
+                name=user.name,
+                createdAt=user.created_at
+            )
+    finally:
+        db.close()
+    
+    # Fall back to in-memory storage for backward compatibility
     if user_id not in users_db:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -82,12 +103,39 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(securit
 
 
 def get_current_active_user(current_user: User = Depends(get_current_user)) -> User:
-    if current_user.id not in users_db:
-        raise HTTPException(status_code=400, detail="Inactive user")
+    # Check if user exists in database
+    from app.dependencies import get_db_session
+    db = next(get_db_session())
+    try:
+        from app.database_service import DatabaseService
+        service = DatabaseService(db)
+        user = service.get_user_by_id(str(current_user.id))
+        if not user:
+            raise HTTPException(status_code=400, detail="Inactive user")
+    finally:
+        db.close()
     return current_user
 
 
 def authenticate_user(email: str, password: str) -> Optional[User]:
+    # Try to get user from database first
+    from app.dependencies import get_db_session
+    db = next(get_db_session())
+    try:
+        from app.database_service import DatabaseService
+        service = DatabaseService(db)
+        db_user = service.get_user_by_email(email)
+        if db_user and verify_password(password, db_user.password_hash):
+            return User(
+                id=UUID(db_user.id),
+                email=db_user.email,
+                name=db_user.name,
+                createdAt=db_user.created_at
+            )
+    finally:
+        db.close()
+    
+    # Fall back to in-memory storage for backward compatibility
     user = None
     for u in users_db.values():
         if u["email"] == email:
@@ -103,6 +151,22 @@ def create_user(email: str, password: str, name: str) -> User:
     user_id = uuid4()
     hashed_password = get_password_hash(password)
     
+    # Create user in database
+    from app.dependencies import get_db_session
+    db = next(get_db_session())
+    try:
+        service = DatabaseService(db)
+        user = service.create_user(email, name, hashed_password)
+        return User(
+            id=UUID(user.id),
+            email=user.email,
+            name=user.name,
+            createdAt=user.created_at
+        )
+    finally:
+        db.close()
+    
+    # Also store in memory for backward compatibility
     user = User(
         id=user_id,
         email=email,
@@ -122,6 +186,23 @@ def auth_create_user(email: str, name: str, password_hash: str, user_id: Optiona
     """Create a user through the auth module with pre-hashed password"""
     if user_id is None:
         user_id = uuid4()
+    
+    # Create user in database
+    from app.dependencies import get_db_session
+    db = next(get_db_session())
+    try:
+        service = DatabaseService(db)
+        user = service.create_user(email, name, password_hash)
+        return User(
+            id=UUID(user.id),
+            email=user.email,
+            name=user.name,
+            createdAt=user.created_at
+        )
+    finally:
+        db.close()
+    
+    # Also store in memory for backward compatibility
     user = User(
         id=user_id,
         email=email,

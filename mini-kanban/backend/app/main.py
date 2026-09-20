@@ -1,17 +1,30 @@
-from fastapi import FastAPI, Request, Response
+from fastapi import FastAPI, Request, Response, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from contextlib import asynccontextmanager
+import os
 
 from app.routers import auth, boards, columns, cards, participants, invitations, search
 from app.auth import auth_middleware
+from app.database import create_tables, SessionLocal
+from app.dependencies import get_db_session
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup: seed data
-    from app.store import seed_data
-    seed_data()
+    # Startup: create tables and seed data
+    create_tables()
+    
+    # Only seed data if using in-memory SQLite (for development)
+    if os.getenv("DATABASE_URL", "sqlite:///./mini_kanban.db").startswith("sqlite://"):
+        db = SessionLocal()
+        try:
+            from app.database_service import DatabaseService
+            service = DatabaseService(db)
+            service.seed_data()
+        finally:
+            db.close()
+    
     yield
     # Shutdown: cleanup if needed
     pass
@@ -40,6 +53,14 @@ async def global_exception_handler(request: Request, exc: Exception):
         status_code=500,
         content={"message": "Internal server error"},
     )
+
+# Database dependency
+def get_db_session():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
 
 # Include routers
 app.include_router(auth.router, prefix="/auth", tags=["Authentication"])

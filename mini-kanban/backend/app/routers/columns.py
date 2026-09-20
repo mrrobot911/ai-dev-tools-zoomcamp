@@ -2,14 +2,13 @@ from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from uuid import UUID
+from sqlalchemy.orm import Session
 
 from app.models import Column, ColumnCreate, ColumnUpdate, ColumnReorder
-from app.store import (
-    create_column, get_columns_by_board, update_column, delete_column,
-    reorder_columns, get_board_by_id
-)
+from app.database_service import DatabaseService
 from app.auth import get_current_active_user
 from app.models import User
+from app.dependencies import get_db_session
 
 router = APIRouter()
 
@@ -18,29 +17,31 @@ router = APIRouter()
 async def create_column_endpoint(
     boardId: UUID,
     column_data: ColumnCreate,
-    current_user: User = Depends(get_current_active_user)
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db_session)
 ):
     """Create column (owner only)"""
+    service = DatabaseService(db)
+    
     # Check if board exists and user has access
-    board = get_board_by_id(boardId)
+    board = service.get_board_by_id(str(boardId))
     if not board:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Board not found"
         )
     
-    # Check if user is the owner (simplified - in real app, check participants)
-    if board.ownerId != current_user.id:
+    # Check if user is the owner
+    if board.owner_id != str(current_user.id):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Access denied"
         )
     
-    column = create_column(
-        board_id=boardId,
-        name=column_data.name
-    )
-    return column
+    column = service.create_column(str(boardId), column_data.name)
+    # Convert to API model
+    from app.model_converter import ModelConverter
+    return ModelConverter.to_column_model(column)
 
 
 @router.put("/{boardId}/columns/{columnId}", response_model=Column)

@@ -1,12 +1,12 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from uuid import UUID
+from sqlalchemy.orm import Session
 
 from app.models import User
-from app.store import (
-    get_board_by_id, remove_participant, get_participants_by_board,
-    get_user_by_id, board_participants
-)
+from app.database_service import DatabaseService
 from app.auth import get_current_active_user
+from app.dependencies import get_db_session
+from app.model_converter import ModelConverter
 
 router = APIRouter()
 
@@ -15,11 +15,14 @@ router = APIRouter()
 async def remove_participant_endpoint(
     boardId: UUID,
     userId: UUID,
-    current_user: User = Depends(get_current_active_user)
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db_session)
 ):
     """Remove participant (owner only)"""
+    service = DatabaseService(db)
+    
     # Check if board exists and user has access
-    board = get_board_by_id(boardId)
+    board = service.get_board_by_id(str(boardId))
     if not board:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -27,27 +30,29 @@ async def remove_participant_endpoint(
         )
     
     # Check if user is the owner
-    if board.ownerId != current_user.id:
+    if board.owner_id != str(current_user.id):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Access denied (not owner)"
         )
     
     # Check if trying to remove the owner
-    if userId == board.ownerId:
+    if str(userId) == board.owner_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Cannot remove board owner"
         )
     
     # Check if user is a participant
-    if boardId not in board_participants or userId not in board_participants[boardId]:
+    participants = service.get_participants_by_board(str(boardId))
+    user_is_participant = any(p["userId"] == str(userId) for p in participants)
+    if not user_is_participant:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="User not found in board"
         )
     
-    success = remove_participant(boardId, userId)
+    success = service.remove_participant(str(boardId), str(userId))
     if not success:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -60,11 +65,14 @@ async def remove_participant_endpoint(
 @router.post("/{boardId}/leave")
 async def leave_board_endpoint(
     boardId: UUID,
-    current_user: User = Depends(get_current_active_user)
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db_session)
 ):
     """Leave board"""
+    service = DatabaseService(db)
+    
     # Check if board exists and user has access
-    board = get_board_by_id(boardId)
+    board = service.get_board_by_id(str(boardId))
     if not board:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -72,20 +80,22 @@ async def leave_board_endpoint(
         )
     
     # Check if user is the owner (cannot leave if owner)
-    if board.ownerId == current_user.id:
+    if board.owner_id == str(current_user.id):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Cannot leave (only participant, not owner)"
         )
     
     # Check if user is a participant
-    if boardId not in board_participants or current_user.id not in board_participants[boardId]:
+    participants = service.get_participants_by_board(str(boardId))
+    user_is_participant = any(p["userId"] == str(current_user.id) for p in participants)
+    if not user_is_participant:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Board not found or not a participant"
         )
     
-    success = remove_participant(boardId, current_user.id)
+    success = service.remove_participant(str(boardId), str(current_user.id))
     if not success:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

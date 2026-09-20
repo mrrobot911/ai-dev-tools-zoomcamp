@@ -2,6 +2,14 @@ import pytest
 from uuid import uuid4
 from fastapi.testclient import TestClient
 from app.main import app
+import os
+
+# Override database URL for tests
+os.environ["DATABASE_URL"] = "sqlite:///:memory:"
+
+# Create tables for test database
+from app.database import create_tables
+create_tables()
 
 client = TestClient(app)
 
@@ -9,52 +17,27 @@ client = TestClient(app)
 @pytest.fixture
 def cleanup_dbs():
     """Clean up all databases before each test"""
-    from app.store import (
-        users_db, boards_db, columns_db, cards_db, 
-        participants_db, invitations_db, board_participants
-    )
-    from app.auth import users_db as auth_users_db
+    # Clear the test database by dropping and recreating tables
+    from app.database import Base, engine
     
-    # Store original state
-    original_state = {
-        'users_db': dict(users_db),
-        'boards_db': dict(boards_db),
-        'columns_db': dict(columns_db),
-        'cards_db': dict(cards_db),
-        'participants_db': dict(participants_db),
-        'invitations_db': dict(invitations_db),
-        'board_participants': dict(board_participants),
-        'auth_users_db': dict(auth_users_db)
-    }
-    
-    # Clear all databases
-    users_db.clear()
-    boards_db.clear()
-    columns_db.clear()
-    cards_db.clear()
-    participants_db.clear()
-    invitations_db.clear()
-    board_participants.clear()
-    auth_users_db.clear()
+    # Drop all tables
+    Base.metadata.drop_all(bind=engine)
+    # Recreate all tables
+    Base.metadata.create_all(bind=engine)
     
     yield
     
-    # Restore original state
-    users_db.update(original_state['users_db'])
-    boards_db.update(original_state['boards_db'])
-    columns_db.update(original_state['columns_db'])
-    cards_db.update(original_state['cards_db'])
-    participants_db.update(original_state['participants_db'])
-    invitations_db.update(original_state['invitations_db'])
-    board_participants.update(original_state['board_participants'])
-    auth_users_db.update(original_state['auth_users_db'])
+    # Clean up again after test
+    Base.metadata.drop_all(bind=engine)
+    Base.metadata.create_all(bind=engine)
 
 
 @pytest.fixture
 def test_user():
     """Create a test user"""
+    import uuid
     return {
-        "email": "test@example.com",
+        "email": f"test-{uuid.uuid4()}@example.com",
         "password": "testpass123",
         "name": "Test User"
     }
