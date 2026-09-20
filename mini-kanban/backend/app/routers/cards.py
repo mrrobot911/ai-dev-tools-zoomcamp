@@ -83,7 +83,7 @@ async def delete_card_endpoint(
     cards = service.get_cards_by_board(str(boardId))
     card = None
     for c in cards:
-        if c.id == cardId:
+        if str(c.id) == str(cardId):
             card = c
             break
     
@@ -130,7 +130,7 @@ async def move_card_endpoint(
     
     # Check if card exists and belongs to this board
     cards = service.get_cards_by_board(str(boardId))
-    card_exists = any(c.id == move_data.cardId for c in cards)
+    card_exists = any(str(c.id) == str(move_data.cardId) for c in cards)
     if not card_exists:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -178,7 +178,7 @@ async def update_card_endpoint(
     
     # Check if card exists and belongs to this board
     cards = service.get_cards_by_board(str(boardId))
-    card_exists = any(c.id == cardId for c in cards)
+    card_exists = any(str(c.id) == str(cardId) for c in cards)
     if not card_exists:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
