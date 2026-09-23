@@ -100,7 +100,8 @@ def update_board(board_id: UUID, name: str, owner_id: UUID) -> Optional[Board]:
         service = DatabaseService(db)
         board = service.update_board(str(board_id), name, str(owner_id))
         if board:
-            return ModelConverter.to_board_model(board)
+            # The service already returns a BoardModel, so just return it
+            return board
         return None
     finally:
         db.close()

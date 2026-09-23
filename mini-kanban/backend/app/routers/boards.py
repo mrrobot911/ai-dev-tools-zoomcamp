@@ -130,9 +130,8 @@ async def update_board_endpoint(
             detail="Board not found"
         )
     
-    # Convert to API model
-    from app.model_converter import ModelConverter
-    return ModelConverter.to_board_model(updated_board)
+    # Convert to API model (already done in service)
+    return updated_board
 
 
 @router.delete("/{boardId}")

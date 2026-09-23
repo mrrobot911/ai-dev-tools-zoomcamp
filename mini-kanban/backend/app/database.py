@@ -40,7 +40,7 @@ def get_session():
     global SessionLocal
     if SessionLocal is None:
         engine = get_engine()
-        SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+        SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine, expire_on_commit=False)
     return SessionLocal()
 
 @contextmanager

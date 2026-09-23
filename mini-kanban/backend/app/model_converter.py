@@ -23,9 +23,9 @@ class ModelConverter:
     def to_board_model(db_board: Board) -> BoardModel:
         """Convert database Board to API Board model"""
         return BoardModel(
-            id=UUID(db_board.id),
+            id=db_board.id if isinstance(db_board.id, UUID) else UUID(str(db_board.id)),
             name=db_board.name,
-            ownerId=UUID(db_board.owner_id),
+            ownerId=db_board.owner_id if isinstance(db_board.owner_id, UUID) else UUID(str(db_board.owner_id)),
             ownerName=db_board.owner.name,  # This should work through relationship
             createdAt=db_board.created_at,
             updatedAt=db_board.updated_at

@@ -5,7 +5,8 @@ from sqlalchemy.orm import Session
 from sqlalchemy import and_, or_, func
 
 from app.models.database import User, Board, BoardColumn, Card, BoardParticipant, Invitation
-from app.models import UserRole
+from app.models import UserRole, Board as BoardModel
+from app.model_converter import ModelConverter
 
 class DatabaseService:
     def __init__(self, db: Session):
@@ -44,7 +45,7 @@ class DatabaseService:
         
         return self.db.query(User).filter(User.id == user_id).first()
     
-    def create_board(self, name: str, owner_id: str, owner_name: str) -> Board:
+    def create_board(self, name: str, owner_id: str, owner_name: str) -> BoardModel:
         from uuid import uuid4
         from app.model_converter import ModelConverter
         
@@ -66,8 +67,11 @@ class DatabaseService:
         self.create_column(board.id, "In Progress", 1)
         self.create_column(board.id, "Done", 2)
         
+        # Refresh to load all fields including relationships
+        self.db.refresh(board)
+        
         # Convert to API model
-        return board
+        return ModelConverter.to_board_model(board)
     
     def get_board_by_id(self, board_id: str) -> Optional[Board]:
         return self.db.query(Board).filter(Board.id == board_id).first()
@@ -104,13 +108,14 @@ class DatabaseService:
         
         return user_boards
     
-    def update_board(self, board_id: str, name: str, owner_id: str) -> Optional[Board]:
+    def update_board(self, board_id: str, name: str, owner_id: str) -> Optional[BoardModel]:
         board = self.get_board_by_id(board_id)
         if board:
             board.name = name
             board.updated_at = datetime.utcnow()
             self.db.commit()
-            return board
+            self.db.refresh(board)
+            return ModelConverter.to_board_model(board)
         return None
     
     def delete_board(self, board_id: str) -> bool:
@@ -139,6 +144,7 @@ class DatabaseService:
         )
         self.db.add(column)
         self.db.commit()
+        self.db.refresh(column)
         return column
     
     def get_columns_by_board(self, board_id: str) -> List[Dict[str, Any]]:
@@ -166,6 +172,7 @@ class DatabaseService:
             if order is not None:
                 column.order = order
             self.db.commit()
+            self.db.refresh(column)
             return column
         return None
     
@@ -211,6 +218,7 @@ class DatabaseService:
         )
         self.db.add(card)
         self.db.commit()
+        self.db.refresh(card)
         return card
     
     def get_cards_by_board(self, board_id: str) -> List[Card]:
@@ -235,6 +243,7 @@ class DatabaseService:
                 card.assignee_name = assignee_name
             card.updated_at = datetime.utcnow()
             self.db.commit()
+            self.db.refresh(card)
             return card
         return None
     
@@ -252,6 +261,7 @@ class DatabaseService:
             card.column_id = target_column_id
             card.updated_at = datetime.utcnow()
             self.db.commit()
+            self.db.refresh(card)
             return card
         return None
     
@@ -281,6 +291,7 @@ class DatabaseService:
         )
         self.db.add(participant)
         self.db.commit()
+        self.db.refresh(participant)
         return participant
     
     def get_participants_by_board(self, board_id: str) -> List[Dict[str, Any]]:
@@ -331,6 +342,7 @@ class DatabaseService:
         )
         self.db.add(invitation)
         self.db.commit()
+        self.db.refresh(invitation)
         return invitation
     
     def get_invitations_by_board(self, board_id: str) -> List[Invitation]:
