@@ -8,6 +8,7 @@ from app.models import Board, BoardCreate, BoardSummary, BoardWithDetails, User
 from app.database_service import DatabaseService
 from app.auth import get_current_active_user
 from app.dependencies import get_db_session
+from app.model_converter import ModelConverter
 
 router = APIRouter()
 
@@ -68,6 +69,48 @@ async def get_board_details(
     columns = service.get_columns_by_board(str(boardId))
     cards = service.get_cards_by_board(str(boardId))
     
+    # Convert database objects to API models
+    participants_models = []
+    for participant in participants:
+        # Create a BoardParticipant object for conversion with user data
+        from app.models.database import BoardParticipant, User
+        db_participant = BoardParticipant(
+            id=participant["id"],
+            user_id=participant["userId"],
+            role=participant["role"],
+            joined_at=participant["joinedAt"]
+        )
+        # Create a User object and attach it to the participant
+        if participant.get("email") and participant.get("name"):
+            db_participant.user = User(
+                id=participant["userId"],
+                email=participant["email"],
+                name=participant["name"]
+            )
+        else:
+            # Fallback for missing user data
+            db_participant.user = User(
+                id=participant["userId"],
+                email="unknown@example.com",
+                name="Unknown"
+            )
+        participants_models.append(ModelConverter.to_participant_model(db_participant))
+    
+    columns_models = []
+    for column in columns:
+        # Create a BoardColumn object for conversion
+        from app.models.database import BoardColumn
+        db_column = BoardColumn(
+            id=column["id"],
+            board_id=column["boardId"],
+            name=column["name"],
+            order=column["order"],
+            created_at=column["createdAt"]
+        )
+        columns_models.append(ModelConverter.to_column_model(db_column))
+    
+    cards_models = [ModelConverter.to_card_model(card) for card in cards]
+    
     # Determine user's role and get owner name
     owner_name = None
     for participant in participants:
@@ -88,9 +131,9 @@ async def get_board_details(
         ownerName=owner_name,
         createdAt=board.created_at,
         updatedAt=board.updated_at,
-        participants=participants,
-        columns=columns,
-        cards=cards,
+        participants=participants_models,
+        columns=columns_models,
+        cards=cards_models,
         role=role
     )
 
