@@ -12,9 +12,14 @@ class DatabaseService:
         self.db = db
     
     def create_user(self, email: str, name: str, password_hash: str) -> User:
-        """Create a user in the database"""
+        """Create a user in the database or return existing user"""
         from app.database import create_tables
         create_tables()
+        
+        # Check if user already exists
+        existing_user = self.get_user_by_email(email)
+        if existing_user:
+            return existing_user
         
         user_id = str(uuid4())
         user = User(
@@ -62,7 +67,7 @@ class DatabaseService:
         self.create_column(board.id, "Done", 2)
         
         # Convert to API model
-        return ModelConverter.to_board_model(board)
+        return board
     
     def get_board_by_id(self, board_id: str) -> Optional[Board]:
         return self.db.query(Board).filter(Board.id == board_id).first()

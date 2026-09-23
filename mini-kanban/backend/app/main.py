@@ -6,7 +6,7 @@ import os
 
 from app.routers import auth, boards, columns, cards, participants, invitations, search
 from app.auth import auth_middleware
-from app.database import create_tables, SessionLocal
+from app.database import create_tables, get_db
 from app.dependencies import get_db_session
 
 
@@ -17,7 +17,8 @@ async def lifespan(app: FastAPI):
     
     # Only seed data if using in-memory SQLite (for development)
     if os.getenv("DATABASE_URL", "sqlite:///./mini_kanban.db").startswith("sqlite://"):
-        db = SessionLocal()
+        from app.database import get_session
+        db = get_session()
         try:
             from app.database_service import DatabaseService
             service = DatabaseService(db)
@@ -56,7 +57,8 @@ async def global_exception_handler(request: Request, exc: Exception):
 
 # Database dependency
 def get_db_session():
-    db = SessionLocal()
+    from app.database import get_session
+    db = get_session()
     try:
         yield db
     finally:
