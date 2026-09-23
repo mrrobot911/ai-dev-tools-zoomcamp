@@ -128,6 +128,7 @@ class DatabaseService:
         return False
     
     def create_column(self, board_id: str, name: str, order: int = None) -> BoardColumn:
+        board_id = str(board_id)
         if order is None:
             # Get max order and add 1
             max_order_result = self.db.query(func.max(BoardColumn.order)).filter(
@@ -203,6 +204,8 @@ class DatabaseService:
     def create_card(self, board_id: str, column_id: str, title: str, creator_id: str, 
                    creator_name: str, description: Optional[str] = None, 
                    assignee_id: Optional[str] = None, assignee_name: Optional[str] = None) -> Card:
+        board_id = str(board_id)
+        column_id = str(column_id)
         card = Card(
             id=str(uuid4()),
             board_id=board_id,
@@ -266,6 +269,8 @@ class DatabaseService:
         return None
     
     def create_participant(self, board_id: str, user_id: str, user_name: str, role: UserRole) -> BoardParticipant:
+        board_id = str(board_id)
+        user_id = str(user_id)
         # Check if user exists
         user = self.get_user_by_id(user_id)
         if not user:
@@ -328,6 +333,8 @@ class DatabaseService:
         return False
     
     def create_invitation(self, board_id: str, board_name: str, created_by: str) -> Invitation:
+        board_id = str(board_id)
+        created_by = str(created_by)
         import secrets
         token = secrets.token_urlsafe(32)
         
@@ -382,16 +389,16 @@ class DatabaseService:
         board2 = self.create_board("Project Board", user1.id, user1.name)
         
         # Create test columns for board1
-        col1 = self.create_column(board1.id, "To Do")
-        col2 = self.create_column(board1.id, "In Progress")
-        col3 = self.create_column(board1.id, "Done")
+        col1 = self.create_column(str(board1.id), "To Do")
+        col2 = self.create_column(str(board1.id), "In Progress")
+        col3 = self.create_column(str(board1.id), "Done")
         
         # Create test cards
-        card1 = self.create_card(board1.id, col1.id, "Task 1", user1.id, user1.name, "Description 1")
-        card2 = self.create_card(board1.id, col1.id, "Task 2", user1.id, user1.name, "Description 2")
-        card3 = self.create_card(board1.id, col2.id, "Task 3", user1.id, user1.name, "Description 3")
+        card1 = self.create_card(str(board1.id), str(col1.id), "Task 1", user1.id, user1.name, "Description 1")
+        card2 = self.create_card(str(board1.id), str(col1.id), "Task 2", user1.id, user1.name, "Description 2")
+        card3 = self.create_card(str(board1.id), str(col2.id), "Task 3", user1.id, user1.name, "Description 3")
         
         # Create invitation
-        self.create_invitation(board1.id, board1.name, user1.id)
+        self.create_invitation(str(board1.id), board1.name, user1.id)
         
         print("Data seeded successfully!")
