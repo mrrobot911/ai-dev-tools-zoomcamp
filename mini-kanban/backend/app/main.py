@@ -4,7 +4,7 @@ from fastapi.responses import JSONResponse
 from contextlib import asynccontextmanager
 import os
 
-from app.routers import auth, boards, columns, cards, participants, invitations, search
+from app.routers import auth, boards, columns, cards, participants, invitations, search, updates
 from app.auth import auth_middleware
 from app.database import create_tables, get_db
 from app.dependencies import get_db_session
@@ -72,6 +72,7 @@ app.include_router(cards.router, prefix="/boards", tags=["Cards"])
 app.include_router(participants.router, prefix="/boards", tags=["Participants"])
 app.include_router(invitations.router, prefix="/boards", tags=["Invitations"])
 app.include_router(search.router, prefix="/boards", tags=["Search"])
+app.include_router(updates.router, prefix="", tags=["Real-time"])
 
 @app.get("/")
 async def root():

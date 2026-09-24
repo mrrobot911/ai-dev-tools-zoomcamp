@@ -45,6 +45,7 @@ class BoardColumn(Base):
     name = Column(String, nullable=False)
     order = Column(Integer, nullable=False, default=0)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
     
     # Relationships
     board = relationship("Board", back_populates="columns")
