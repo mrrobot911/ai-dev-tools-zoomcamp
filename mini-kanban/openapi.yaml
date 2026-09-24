@@ -1,7 +1,7 @@
 openapi: 3.0.0
 info:
   title: Mini Kanban Board API
-  description: REST API and WebSocket endpoints for the Mini Kanban Board application
+  description: REST API for the Mini Kanban Board application
   version: 1.0.0
   contact:
     name: Mini Kanban Board Team
@@ -780,6 +780,46 @@ paths:
                 items:
                   $ref: '#/components/schemas/Card'
 
+  # Long Polling endpoints
+  /api/boards/{board_id}/updates:
+    get:
+      tags:
+        - Real-time
+      summary: Poll for board updates (Long Polling)
+      description: |
+        Returns changes to the board since the given timestamp.
+        If no changes are available, holds the request open for up to 30 seconds.
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: board_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: since
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date-time
+          description: ISO 8601 timestamp (e.g., 2026-09-23T12:00:00Z)
+
+      responses:
+        '200':
+          description: List of changes since the given timestamp
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/BoardEvent'
+        '401':
+          description: Authentication required
+        '403':
+          description: Not a participant of this board
+
 components:
   securitySchemes:
     BearerAuth:
@@ -949,7 +989,26 @@ components:
           type: string
           format: uuid
 
-  errors:
+    BoardEvent:
+      type: object
+      properties:
+        entity_type:
+          type: string
+          enum: [board, column, card, participant]
+        action:
+          type: string
+          enum: [created, updated, deleted]
+        entity_id:
+          type: string
+          format: uuid
+        timestamp:
+          type: string
+          format: date-time
+        payload:
+          type: object
+          description: Full entity data for create/update, null for delete
+          nullable: true
+
     Error:
       type: object
       properties:
@@ -957,8 +1016,6 @@ components:
           type: string
         status:
           type: integer
-
-
 
 tags:
   - name: Authentication
@@ -975,5 +1032,5 @@ tags:
     description: Invitation management operations
   - name: Search
     description: Card search and filtering operations
-  - name: WebSocket
+  - name: Real-time
     description: Real-time synchronization endpoints
