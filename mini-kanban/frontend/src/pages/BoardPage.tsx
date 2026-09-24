@@ -17,7 +17,8 @@ import {
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from '@/hooks/useRouter';
 import { service } from '@/services';
-import type { BoardWithDetails, Card, Column, Participant } from '@/types';
+import { useBoardPolling } from '@/hooks/useBoardPolling';
+import type { BoardWithDetails, Card, Column, Participant, BoardEvent } from '@/types';
 import { ColumnView } from '@/components/board/ColumnView';
 import { CardModal } from '@/components/board/CardModal';
 import { Button, Input, Modal, Avatar } from '@/components/ui';
@@ -62,6 +63,21 @@ export function BoardPage({ boardId }: { boardId: string }) {
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } })
   );
+
+  // Long polling for board updates
+  const token = localStorage.getItem('auth_token');
+  const { isPolling, error: pollingError } = useBoardPolling({
+    boardId,
+    token: token || '',
+    enabled: !!user && !!board && !!token,
+    onUpdate: (events: BoardEvent[]) => {
+      // Handle board updates by refetching the board
+      loadBoard();
+    },
+    onError: (error) => {
+      console.error('Polling error:', error);
+    },
+  });
 
   const loadBoard = useCallback(async () => {
     try {
@@ -358,6 +374,13 @@ export function BoardPage({ boardId }: { boardId: string }) {
           </div>
 
           <div className="flex items-center gap-2">
+            {/* Polling indicator */}
+            {isPolling && (
+              <div className="flex items-center gap-1 text-sm text-slate-500">
+                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                <span>Live</span>
+              </div>
+            )}
             {/* Participants */}
             <div className="flex items-center -space-x-1.5 mr-2">
               {board.participants.slice(0, 5).map((p) => (

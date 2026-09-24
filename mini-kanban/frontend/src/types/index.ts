@@ -77,3 +77,11 @@ export const LIMITS = {
 } as const;
 
 export const DEFAULT_COLUMNS = ['To Do', 'In Progress', 'Done'] as const;
+
+export interface BoardEvent {
+  entity_type: 'board' | 'column' | 'card' | 'participant';
+  action: 'created' | 'updated' | 'deleted';
+  entity_id: string;
+  timestamp: string;
+  payload: any | null;
+}
