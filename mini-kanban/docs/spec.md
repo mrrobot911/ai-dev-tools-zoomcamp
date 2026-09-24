@@ -13,7 +13,7 @@ Each board contains columns and cards. Users can create and manage cards and mov
 * **Frontend:** React + TypeScript
 * **Backend:** FastAPI + SQLAlchemy
 * **Database:** SQLite
-* **Real-time communication:** WebSocket
+* **Real-time communication:** Long Polling over REST API
 * **HTTP API:** REST
 
 ### Default Board Structure
@@ -192,20 +192,25 @@ Participants cannot:
 
 ### Real-Time Collaboration
 
-* The application uses WebSockets for real-time communication.
-* REST API endpoints are used for normal CRUD operations.
-* Changes to boards, columns, cards, and participants are broadcast to connected users of the same board.
-* When one user moves a card, other connected users see the new column immediately.
-* When one user edits a card, other connected users see the updated data immediately.
-* When a participant is added or removed, other connected users see the change immediately.
-* If two users edit the same entity concurrently, the last successfully saved change wins.
-* No conflict resolution UI is required for the MVP.
+The application uses Long Polling over REST API for near real-time updates.
+REST API endpoints are used for normal CRUD operations.
+The backend exposes a dedicated updates endpoint for each board:
+GET /api/boards/{board_id}/updates?since={timestamp}
+The updates endpoint returns all board, column, card, and participant changes
+that occurred after the given timestamp.
+If no changes are available, the endpoint holds the request open for up to
+30 seconds before returning an empty response (long polling).
+After the response is received (or timeout), the client immediately issues
+a new request.
+Changes become visible to other users within the next polling cycle.
+If two users edit the same entity concurrently, the last successfully saved
+change wins. No conflict resolution UI is required for the MVP.
 
 ### Connection Loss
 
 * The UI applies supported user actions optimistically.
 * Temporary connection loss is visible to the user.
-* After reconnecting, the client synchronizes with the current server state.
+* After connectivity is restored, the client synchronizes with the current server state.
 * The system does not require a persistent offline operation queue.
 
 ### Access Control
@@ -243,6 +248,7 @@ The following features are explicitly outside the MVP scope:
 * Advanced search.
 * Analytics and reporting.
 * Multiple databases or database replication.
+* WebSocket or Server-Sent Events (SSE).
 
 ---
 
@@ -281,9 +287,11 @@ The application must include automated tests covering the behavior defined in th
 
 ### Real-Time
 
-* Integration tests for WebSocket communication.
-* Tests verifying that board changes are propagated to connected clients.
-* Tests covering card movement and concurrent updates.
+* Integration tests for the updates endpoint.
+* Tests verifying that board changes are returned when polled with a past timestamp.
+* Tests verifying that the endpoint holds the request when no changes are available.
+* Tests verifying that concurrent updates are visible on subsequent polls.
+* Tests verifying that the client polling loop handles network failures.
 
-Tests should cover all acceptance criteria and the API/WebSocket contract defined by the implementation.
+Tests should cover all acceptance criteria and the API/long polling contract defined by the implementation.
 
