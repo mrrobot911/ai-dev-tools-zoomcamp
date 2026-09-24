@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from uuid import UUID
 from sqlalchemy.orm import Session
 
-from app.models import Card, CardCreate, CardUpdate, CardMove, User
+from app.models import Card, CardCreate, CardUpdate, CardMove, CardMoveWithPath, User
 from app.database_service import DatabaseService
 from app.auth import get_current_active_user
 from app.dependencies import get_db_session
@@ -147,6 +147,54 @@ async def move_card_endpoint(
         )
     
     moved_card = service.move_card(str(move_data.cardId), str(move_data.targetColumnId))
+    if not moved_card:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Card not found"
+        )
+    
+    # Convert to API model
+    return ModelConverter.to_card_model(moved_card)
+
+
+@router.put("/{boardId}/cards/{cardId}/move", response_model=Card)
+async def move_card_by_path_endpoint(
+    boardId: UUID,
+    cardId: UUID,
+    move_data: CardMoveWithPath,
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db_session)
+):
+    """Move card to different column (using card ID in path)"""
+    service = DatabaseService(db)
+    
+    # Check if board exists and user has access
+    board = service.get_board_by_id(str(boardId))
+    if not board:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Board not found"
+        )
+    
+    # Check if card exists and belongs to this board
+    cards = service.get_cards_by_board(str(boardId))
+    card_exists = any(str(c.id) == str(cardId) for c in cards)
+    if not card_exists:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Card not found"
+        )
+    
+    # Check if target column exists
+    columns = service.get_columns_by_board(str(boardId))
+    target_column_exists = any(c["id"] == str(move_data.targetColumnId) for c in columns)
+    if not target_column_exists:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Column not found"
+        )
+    
+    moved_card = service.move_card(str(cardId), str(move_data.targetColumnId))
     if not moved_card:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

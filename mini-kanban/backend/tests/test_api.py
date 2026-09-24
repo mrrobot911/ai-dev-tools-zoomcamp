@@ -527,8 +527,7 @@ def test_move_card_invalid_card_id(headers, test_user):
     # Try to move non-existent card
     fake_card_id = str(uuid4())
     move_data = {
-        "cardId": fake_card_id,  # Non-existent card ID
-        "targetColumnId": progress_column["id"]
+        "targetColumnId": progress_column["id"]  # Path endpoint should only have targetColumnId in body
     }
     move_response = client.put(f"/boards/{board_id}/cards/{fake_card_id}/move", json=move_data, headers=headers)
     assert move_response.status_code == 404

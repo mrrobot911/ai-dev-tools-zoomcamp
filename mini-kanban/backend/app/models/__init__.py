@@ -3,7 +3,7 @@ from enum import Enum
 from typing import Optional, List
 from uuid import UUID, uuid4
 
-from pydantic import BaseModel, Field, field_validator, EmailStr
+from pydantic import BaseModel, Field, field_validator, ConfigDict, EmailStr
 
 
 class UserRole(str, Enum):
@@ -177,8 +177,44 @@ class CardUpdate(BaseModel):
 
 
 class CardMove(BaseModel):
-    cardId: UUID
+    cardId: UUID = Field(..., alias='card_id')
+    targetColumnId: UUID = Field(..., alias='target_column_id')
+    
+    model_config = ConfigDict(
+        populate_by_name=True,
+        alias_generator=lambda field_name: field_name,
+        json_encoders={UUID: str}
+    )
+    
+    @field_validator('cardId', mode='before')
+    @classmethod
+    def validate_card_id(cls, v):
+        if isinstance(v, str):
+            return UUID(v)
+        return v
+    
+    @field_validator('targetColumnId', mode='before')
+    @classmethod
+    def validate_target_column_id(cls, v):
+        if isinstance(v, str):
+            return UUID(v)
+        return v
+
+
+class CardMoveWithPath(BaseModel):
     targetColumnId: UUID
+    
+    model_config = ConfigDict(
+        json_encoders={UUID: str},
+        extra='forbid'
+    )
+    
+    @field_validator('targetColumnId', mode='before')
+    @classmethod
+    def validate_target_column_id(cls, v):
+        if isinstance(v, str):
+            return UUID(v)
+        return v
 
 
 class ColumnReorder(BaseModel):
