@@ -31,6 +31,10 @@ def get_engine():
         # Create database engine
         engine = create_engine(
             database_url,
+            pool_size=20,
+            max_overflow=20,
+            pool_pre_ping=True,
+            pool_recycle=3600,
             connect_args={"check_same_thread": False} if "sqlite" in database_url else {}
         )
     return engine

@@ -14,9 +14,6 @@ class DatabaseService:
     
     def create_user(self, email: str, name: str, password_hash: str) -> User:
         """Create a user in the database or return existing user"""
-        from app.database import create_tables
-        create_tables()
-        
         # Check if user already exists
         existing_user = self.get_user_by_email(email)
         if existing_user:
@@ -40,9 +37,6 @@ class DatabaseService:
     
     def get_user_by_id(self, user_id: str) -> Optional[User]:
         """Get user by ID"""
-        from app.database import create_tables
-        create_tables()
-        
         return self.db.query(User).filter(User.id == user_id).first()
     
     def create_board(self, name: str, owner_id: str, owner_name: str) -> BoardModel:
