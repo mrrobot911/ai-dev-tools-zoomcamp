@@ -22,10 +22,12 @@ def get_engine():
     global engine
     if engine is None:
         # Get database URL from environment variable with default
-        database_url = os.getenv("DATABASE_URL", "sqlite:///./mini_kanban.db")
+        database_url = os.getenv("DATABASE_URL", "postgresql://user:password@localhost:5432/minikanban")
         
         # For testing, use a file-based database to ensure persistence
         if database_url == "sqlite:///:memory:":
+            database_url = "sqlite:///./test_kanban.db"
+        elif database_url.startswith("sqlite:///:memory:"):
             database_url = "sqlite:///./test_kanban.db"
         
         # Create database engine

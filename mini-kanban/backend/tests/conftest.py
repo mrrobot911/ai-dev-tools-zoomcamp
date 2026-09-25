@@ -11,9 +11,11 @@ os.environ["DATABASE_URL"] = "sqlite:///:memory:"
 from app.database import reset_engine
 reset_engine()
 
-# Create tables for test database
-from app.database import create_tables
-create_tables()
+# Run migrations for test database
+import subprocess
+import sys
+sys.path.append('/home/kelwin/Документы/ai-dev-tools-zoomcamp/mini-kanban/backend')
+subprocess.run([sys.executable, '-m', 'alembic', 'upgrade', 'head'], cwd='/home/kelwin/Документы/ai-dev-tools-zoomcamp/mini-kanban/backend')
 
 client = TestClient(app)
 

@@ -6,17 +6,14 @@ import os
 
 from app.routers import auth, boards, columns, cards, participants, invitations, search, updates
 from app.auth import auth_middleware
-from app.database import create_tables, get_db
+from app.database import get_db
 from app.dependencies import get_db_session
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup: create tables and seed data
-    create_tables()
-    
     # Only seed data if using in-memory SQLite (for development)
-    if os.getenv("DATABASE_URL", "sqlite:///./mini_kanban.db").startswith("sqlite://"):
+    if os.getenv("DATABASE_URL", "postgresql://user:password@localhost:5432/minikanban").startswith("sqlite://"):
         from app.database import get_session
         db = get_session()
         try:
