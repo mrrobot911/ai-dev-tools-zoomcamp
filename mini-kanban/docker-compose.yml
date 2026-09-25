@@ -24,9 +24,15 @@ services:
     environment:
       - DATABASE_URL=postgresql://user:password@postgres:5432/minikanban
       - PYTHONPATH=/app
+      - BACKEND_URL=http://localhost:8000
     depends_on:
       postgres:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:8000/health', timeout=5)"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     command: >
       sh -c "uv run alembic upgrade head && uv run uvicorn app.main:app --host 0.0.0.0 --port 8000"
 

@@ -14,8 +14,8 @@ reset_engine()
 # Run migrations for test database
 import subprocess
 import sys
-sys.path.append('/home/kelwin/Документы/ai-dev-tools-zoomcamp/mini-kanban/backend')
-subprocess.run([sys.executable, '-m', 'alembic', 'upgrade', 'head'], cwd='/home/kelwin/Документы/ai-dev-tools-zoomcamp/mini-kanban/backend')
+sys.path.append('/app')
+subprocess.run([sys.executable, '-m', 'alembic', 'upgrade', 'head'], cwd='/app')
 
 client = TestClient(app)
 

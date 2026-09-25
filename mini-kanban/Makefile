@@ -1,166 +1,81 @@
-.PHONY: help install install-backend install-dev install-frontend test test-backend test-frontend run run-backend run-frontend build clean lint lint-backend lint-frontend format format-backend format-frontend dev dev-backend dev-frontend
+.PHONY: help test-integration test-e2e test-all clean build
 
 # Default target
 help:
-	@echo "Mini Kanban Board - Development Commands"
-	@echo "========================================"
-	@echo ""
-	@echo "Installation:"
-	@echo "  install           - Install all dependencies for both frontend and backend"
-	@echo "  install-backend   - Install backend dependencies with uv"
-	@echo "  install-frontend  - Install frontend dependencies with npm"
-	@echo "  install-dev       - Install development dependencies only"
-	@echo ""
-	@echo "Development:"
-	@echo "  dev               - Start both frontend and backend in development mode"
-	@echo "  dev-backend       - Start backend only"
-	@echo "  dev-frontend      - Start frontend only"
-	@echo "  run               - Run the application in production mode"
-	@echo "  run-backend       - Run backend in production mode"
-	@echo "  run-frontend      - Run frontend in production mode"
-	@echo ""
-	@echo "Testing:"
-	@echo "  test              - Run all tests (backend and frontend)"
-	@echo "  test-backend      - Run backend tests with pytest"
-	@echo "  test-frontend     - Run frontend tests with vitest"
-	@echo ""
-	@echo "Building:"
-	@echo "  build             - Build frontend for production"
-	@echo "  build-backend     - Build backend package"
-	@echo ""
-	@echo "Code Quality:"
-	@echo "  lint              - Run linters for both frontend and backend"
-	@echo "  lint-backend      - Run Python linter (flake8)"
-	@echo "  lint-frontend     - Run ESLint for frontend"
-	@echo "  format            - Format code for both frontend and backend"
-	@echo "  format-backend    - Format Python code (black, isort)"
-	@echo "  format-frontend   - Format TypeScript/JavaScript code (prettier)"
-	@echo ""
-	@echo "Maintenance:"
-	@echo "  clean             - Clean build artifacts and cache"
-	@echo "  clean-backend     - Clean Python cache and build artifacts"
-	@echo "  clean-frontend    - Clean Node.js build artifacts and cache"
+	@echo "Available targets:"
+	@echo "  test-integration    - Run integration tests in Docker"
+	@echo "  test-e2e           - Run Playwright end-to-end tests locally"
+	@echo "  test-all           - Run all tests (integration + e2e)"
+	@echo "  clean             - Clean up Docker containers and volumes"
+	@echo "  build             - Build Docker images"
 
-# Installation targets
-install:
-	@echo "Installing all dependencies..."
-	@$(MAKE) install-backend
-	@$(MAKE) install-frontend
-	@echo "All dependencies installed successfully!"
+# Test targets
+test-integration:
+	@echo "Running integration tests..."
+	docker-compose exec backend uv run pytest tests/integration/ -v
+	@echo "Integration tests completed"
 
-install-backend:
-	@echo "Installing backend dependencies..."
-	cd backend && uv sync
+test-e2e:
+	@echo "Running end-to-end tests..."
+	cd e2e && npm install && npx playwright test
+	@echo "End-to-end tests completed"
 
-install-frontend:
-	@echo "Installing frontend dependencies..."
-	cd frontend && npm install
+test-all: test-integration test-e2e
+	@echo "All tests completed"
 
-install-dev:
-	@echo "Installing development dependencies..."
-	cd backend && uv sync --dev
-	cd frontend && npm install
-
-# Development targets
-dev:
-	@echo "Starting both frontend and backend in development mode..."
-	@$(MAKE) dev-backend &
-	@$(MAKE) dev-frontend
-	@wait
-
-dev-backend:
-	@echo "Starting backend in development mode..."
-	cd backend && uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
-
-dev-frontend:
-	@echo "Starting frontend in development mode..."
-	cd frontend && npm run dev
-
-# Production targets
-run:
-	@echo "Starting application in production mode..."
-	@$(MAKE) run-backend &
-	@$(MAKE) run-frontend
-	@wait
-
-run-backend:
-	@echo "Starting backend in production mode..."
-	cd backend && uv run uvicorn app.main:app --host 0.0.0.0 --port 8000
-
-run-frontend:
-	@echo "Starting frontend in production mode..."
-	cd frontend && npm run preview
-
-# Testing targets
-test:
-	@echo "Running all tests..."
-	@$(MAKE) test-backend
-	@$(MAKE) test-frontend
-	@echo "All tests completed!"
-
-test-backend:
-	@echo "Running backend tests..."
-	cd backend && uv run pytest
-
-test-frontend:
-	@echo "Running frontend tests..."
-	cd frontend && npm test
-
-# Building targets
+# Docker targets
 build:
-	@echo "Building frontend for production..."
-	cd frontend && npm run build
+	@echo "Building Docker images..."
+	docker-compose build
 
-build-backend:
-	@echo "Building backend package..."
-	cd backend && uv build
-
-# Code quality targets
-lint:
-	@echo "Running linters..."
-	@$(MAKE) lint-backend
-	@$(MAKE) lint-frontend
-	@echo "Linting completed!"
-
-lint-backend:
-	@echo "Running Python linter..."
-	cd backend && uv run flake8 app/ tests/
-
-lint-frontend:
-	@echo "Running ESLint for frontend..."
-	cd frontend && npm run lint
-
-format:
-	@echo "Formatting code..."
-	@$(MAKE) format-backend
-	@$(MAKE) format-frontend
-	@echo "Code formatting completed!"
-
-format-backend:
-	@echo "Formatting Python code..."
-	cd backend && uv run black app/ tests/
-	cd backend && uv run isort app/ tests/
-
-format-frontend:
-	@echo "Formatting frontend code..."
-	cd frontend && npx prettier --write .
-
-# Cleaning targets
+# Clean up
 clean:
-	@echo "Cleaning build artifacts..."
-	@$(MAKE) clean-backend
-	@$(MAKE) clean-frontend
-	@echo "Cleaning completed!"
+	@echo "Cleaning up Docker containers and volumes..."
+	docker-compose down -v --remove-orphans
+	docker system prune -f
 
-clean-backend:
-	@echo "Cleaning backend artifacts..."
-	cd backend && rm -rf .pytest_cache/
-	cd backend && find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
-	cd backend && find . -type f -name "*.pyc" -delete
-	cd backend && rm -rf build/ dist/ *.egg-info/
+# Development helpers
+dev-up:
+	@echo "Starting services in development mode..."
+	docker-compose up -d postgres backend
 
-clean-frontend:
-	@echo "Cleaning frontend artifacts..."
-	cd frontend && rm -rf node_modules/.cache/
-	cd frontend && rm -rf dist/ build/
-	cd frontend && npm run clean 2>/dev/null || true
+dev-down:
+	@echo "Stopping development services..."
+	docker-compose down
+
+logs:
+	@echo "Showing logs..."
+	docker-compose logs -f
+
+# Run tests locally (without Docker)
+test-integration-local:
+	@echo "Running integration tests locally..."
+	cd backend && DATABASE_URL=postgresql://user:***@localhost:5432/minikanban BACKEND_URL=http://localhost:8000 uv run pytest tests/integration/ -v --tb=short
+
+test-e2e-local:
+	@echo "Running end-to-end tests locally..."
+	cd e2e && npm install && npx playwright test
+
+# Check if services are healthy
+health-check:
+	@echo "Checking service health..."
+	docker-compose ps
+	@echo "Checking backend health..."
+	curl http://localhost:8000/health || echo "Backend not healthy"
+
+# Install dependencies
+install-deps:
+	@echo "Installing dependencies..."
+	cd backend && uv sync
+	cd e2e && npm install
+
+# Run specific test scenarios
+break-it-integration:
+	@echo "Running integration tests with 'break it on purpose' approach..."
+	docker-compose exec backend uv run pytest tests/integration/ -v
+	@echo "Integration tests completed - check for intentional failures"
+
+break-it-e2e:
+	@echo "Running end-to-end tests with 'break it on purpose' approach..."
+	cd e2e && npm install && npx playwright test
+	@echo "End-to-end tests completed - check for intentional failures"
