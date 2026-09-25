@@ -1,6 +1,6 @@
-from fastapi import FastAPI, Request, Response, Depends
+from fastapi import FastAPI, Request, Response, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, HTMLResponse, FileResponse
 from contextlib import asynccontextmanager
 import os
 
@@ -52,14 +52,11 @@ async def global_exception_handler(request: Request, exc: Exception):
         content={"message": "Internal server error"},
     )
 
-# Database dependency
-def get_db_session():
-    from app.database import get_session
-    db = get_session()
-    try:
-        yield db
-    finally:
-        db.close()
+# Database dependency is imported from app.dependencies
+
+@app.get("/health")
+async def health_check():
+    return {"status": "healthy"}
 
 # Include routers
 app.include_router(auth.router, prefix="/auth", tags=["Authentication"])
@@ -71,10 +68,20 @@ app.include_router(invitations.router, prefix="/boards", tags=["Invitations"])
 app.include_router(search.router, prefix="/boards", tags=["Search"])
 app.include_router(updates.router, prefix="", tags=["Real-time"])
 
-@app.get("/")
-async def root():
-    return {"message": "Mini Kanban Board API"}
+# Serve static files
+from fastapi.staticfiles import StaticFiles
+app.mount("/assets", StaticFiles(directory="/app/static/assets"), name="assets")
 
-@app.get("/health")
-async def health_check():
-    return {"status": "healthy"}
+# Catch-all for SPA routing
+@app.get("/{full_path:path}", include_in_schema=False)
+async def serve_frontend(full_path: str):
+    frontend_dir = "/app/static"
+    
+    if not full_path:
+        return FileResponse(os.path.join(frontend_dir, "index.html"))
+    
+    file_path = os.path.join(frontend_dir, full_path)
+    if os.path.isfile(file_path):
+        return FileResponse(file_path)
+    
+    return FileResponse(os.path.join(frontend_dir, "index.html"))
