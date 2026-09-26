@@ -25,6 +25,8 @@ target_metadata = Base.metadata
 import os
 database_url = os.getenv("DATABASE_URL")
 if database_url:
+    if database_url.startswith("postgres://"):
+        database_url = database_url.replace("postgres://", "postgresql://", 1)
     config.set_main_option("sqlalchemy.url", database_url)
 
 # other values from the config, defined by the needs of env.py,

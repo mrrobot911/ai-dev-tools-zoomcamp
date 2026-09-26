@@ -23,6 +23,10 @@ def get_engine():
     if engine is None:
         # Get database URL from environment variable with default
         database_url = os.getenv("DATABASE_URL", "postgresql://user:password@localhost:5432/minikanban")
+
+        # Render/Heroku-style URL uses postgres://, SQLAlchemy needs postgresql://
+        if database_url.startswith("postgres://"):
+            database_url = database_url.replace("postgres://", "postgresql://", 1)
         
         # For testing, use a file-based database to ensure persistence
         if database_url == "sqlite:///:memory:":

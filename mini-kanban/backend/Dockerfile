@@ -3,6 +3,10 @@ FROM node:20-alpine as frontend-builder
 
 WORKDIR /app
 
+# VITE_API_URL is baked at build time; default '' = same-origin (backend serves /app/static)
+ARG VITE_API_URL=""
+ENV VITE_API_URL=$VITE_API_URL
+
 # Copy only package files first for better layer caching
 COPY frontend/package.json frontend/package-lock.json ./
 
@@ -41,5 +45,6 @@ COPY --from=frontend-builder /app/dist /app/static
 # Expose port
 EXPOSE 8000
 
-# Default command
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Default command: Render injects $PORT (default 10000); locally falls back to 8000.
+# Migrate on start because Render uses this CMD directly (compose override is local-only).
+CMD ["sh", "-c", "uv run alembic upgrade head && uv run uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]

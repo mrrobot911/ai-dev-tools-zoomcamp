@@ -35,11 +35,13 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# CORS middleware
+# CORS middleware (single-origin by default; override via CORS_ORIGINS for split deploy)
+_cors_origins_env = os.getenv("CORS_ORIGINS", "*")
+_cors_origins = [o.strip() for o in _cors_origins_env.split(",") if o.strip()] or ["*"]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Configure this properly in production
-    allow_credentials=True,
+    allow_origins=_cors_origins,
+    allow_credentials=_cors_origins != ["*"],
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -68,14 +70,16 @@ app.include_router(invitations.router, prefix="/boards", tags=["Invitations"])
 app.include_router(search.router, prefix="/boards", tags=["Search"])
 app.include_router(updates.router, prefix="", tags=["Real-time"])
 
-# Serve static files
+# Serve static files (FRONTEND_DIR/STATIC_DIR overridable; skip if not built, e.g. local API-only run)
 from fastapi.staticfiles import StaticFiles
-app.mount("/assets", StaticFiles(directory="/app/static/assets"), name="assets")
+FRONTEND_DIR = os.getenv("STATIC_DIR", os.getenv("FRONTEND_DIR", "/app/static"))
+if os.path.isdir(os.path.join(FRONTEND_DIR, "assets")):
+    app.mount("/assets", StaticFiles(directory=os.path.join(FRONTEND_DIR, "assets")), name="assets")
 
 # Catch-all for SPA routing
 @app.get("/{full_path:path}", include_in_schema=False)
 async def serve_frontend(full_path: str):
-    frontend_dir = "/app/static"
+    frontend_dir = FRONTEND_DIR
     
     # If it looks like an API route, raise 404 so FastAPI handles it normally
     if full_path.startswith(("auth/", "boards/", "health")):
@@ -84,4 +88,7 @@ async def serve_frontend(full_path: str):
     file_path = os.path.join(frontend_dir, full_path)
     if os.path.isfile(file_path):
         return FileResponse(file_path)
-    return FileResponse(os.path.join(frontend_dir, "index.html"))
+    index_file = os.path.join(frontend_dir, "index.html")
+    if os.path.isfile(index_file):
+        return FileResponse(index_file)
+    raise HTTPException(status_code=404, detail="Not found")

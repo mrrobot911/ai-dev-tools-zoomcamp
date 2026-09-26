@@ -1,0 +1,28 @@
+services:
+  - type: web
+    name: mini-kanban
+    runtime: docker
+    plan: free
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: .
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHONPATH
+        value: /app
+      - key: DATABASE_URL
+        fromDatabase:
+          name: mini-kanban-db
+          property: connectionString
+      - key: SECRET_KEY
+        generateValue: true
+      # Single-origin deploy (backend serves frontend), so same-origin '' works.
+      # Set VITE_API_URL only at build time if you split frontend/backend.
+      # - key: VITE_API_URL
+      #   value: ""
+      # Uncomment for split deploy:
+      # - key: CORS_ORIGINS
+      #   value: https://mini-kanban.onrender.com
+
+databases:
+  - name: mini-kanban-db
+    plan: free
