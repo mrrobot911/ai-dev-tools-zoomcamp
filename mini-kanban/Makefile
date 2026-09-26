@@ -17,7 +17,7 @@ test-integration:
 
 test-e2e:
 	@echo "Running end-to-end tests..."
-	cd e2e && npm install && npx playwright test
+	cd e2e && npm ci && npx playwright install chromium && npx playwright test --project=chromium
 	@echo "End-to-end tests completed"
 
 test-all: test-integration test-e2e

@@ -8,10 +8,7 @@ import os
 os.environ["DATABASE_URL"] = "sqlite:///:memory:"
 
 # Run migrations for test database
-import subprocess
-import sys
-sys.path.append('/home/kelwin/Документы/ai-dev-tools-zoomcamp/mini-kanban/backend')
-subprocess.run([sys.executable, '-m', 'alembic', 'upgrade', 'head'], cwd='/home/kelwin/Документы/ai-dev-tools-zoomcamp/mini-kanban/backend')
+
 
 client = TestClient(app)
 
@@ -83,11 +80,11 @@ def headers2(auth_token2):
     return {"Authorization": f"Bearer {auth_token2}"}
 
 
-def test_root_endpoint():
-    """Test root endpoint"""
-    response = client.get("/")
+def test_health_endpoint():
+    """Test health check endpoint"""
+    response = client.get("/health")
     assert response.status_code == 200
-    assert response.json()["message"] == "Mini Kanban Board API"
+    assert response.json()["status"] == "healthy"
 
 
 def test_health_check():

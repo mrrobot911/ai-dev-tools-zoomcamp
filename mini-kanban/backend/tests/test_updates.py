@@ -12,10 +12,7 @@ import os
 os.environ["DATABASE_URL"] = "sqlite:///:memory:"
 
 # Run migrations for test database
-import subprocess
-import sys
-sys.path.append('/home/kelwin/Документы/ai-dev-tools-zoomcamp/mini-kanban/backend')
-subprocess.run([sys.executable, '-m', 'alembic', 'upgrade', 'head'], cwd='/home/kelwin/Документы/ai-dev-tools-zoomcamp/mini-kanban/backend')
+
 
 client = TestClient(app)
 
@@ -207,7 +204,7 @@ def test_get_updates_board_not_found(auth_token):
     )
     
     assert response.status_code == 404
-    assert "Not Found" in response.json()["detail"]
+    assert "not found" in response.json()["detail"].lower()
 
 def test_get_updates_multiple_entity_types(test_board, auth_token):
     """Test that updates endpoint returns changes for all entity types"""

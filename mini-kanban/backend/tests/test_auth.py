@@ -195,7 +195,7 @@ def test_authenticate_user_invalid_email(cleanup_auth_dbs):
     # Try to authenticate with wrong email
     authenticated_user = authenticate_user("wrong@example.com", password)
     
-    assert authenticated_user is False
+    assert authenticated_user is None
 
 
 def test_authenticate_user_invalid_password(cleanup_auth_dbs):
@@ -210,7 +210,7 @@ def test_authenticate_user_invalid_password(cleanup_auth_dbs):
     # Try to authenticate with wrong password
     authenticated_user = authenticate_user(email, "wrongpassword")
     
-    assert authenticated_user is False
+    assert authenticated_user is None
 
 
 def test_authenticate_user_nonexistent(cleanup_auth_dbs):
@@ -218,7 +218,7 @@ def test_authenticate_user_nonexistent(cleanup_auth_dbs):
     # Try to authenticate user that doesn't exist
     authenticated_user = authenticate_user("nonexistent@example.com", "password")
     
-    assert authenticated_user is False
+    assert authenticated_user is None
 
 
 def test_create_user(cleanup_auth_dbs):

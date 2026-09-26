@@ -77,11 +77,11 @@ app.mount("/assets", StaticFiles(directory="/app/static/assets"), name="assets")
 async def serve_frontend(full_path: str):
     frontend_dir = "/app/static"
     
-    if not full_path:
-        return FileResponse(os.path.join(frontend_dir, "index.html"))
+    # If it looks like an API route, raise 404 so FastAPI handles it normally
+    if full_path.startswith(("auth/", "boards/", "health")):
+        raise HTTPException(status_code=404, detail="Not found")
     
     file_path = os.path.join(frontend_dir, full_path)
     if os.path.isfile(file_path):
         return FileResponse(file_path)
-    
     return FileResponse(os.path.join(frontend_dir, "index.html"))

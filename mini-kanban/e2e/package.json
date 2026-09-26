@@ -7,7 +7,6 @@
     "test:ui": "playwright test --ui",
     "test:headed": "playwright test --headed",
     "test:debug": "playwright test --debug",
-    "install": "npm install",
     "install:playwright": "npx playwright install"
   },
   "devDependencies": {

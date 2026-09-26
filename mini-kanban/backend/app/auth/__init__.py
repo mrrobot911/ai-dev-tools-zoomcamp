@@ -124,7 +124,7 @@ def authenticate_user(email: str, password: str) -> Optional[User]:
     finally:
         db.close()
     
-    return False
+    return None
 
 
 def create_user(email: str, password: str, name: str) -> User:
